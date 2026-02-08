@@ -3,7 +3,6 @@ Camping Newsletter Automation - Main Script
 캠핑장 뉴스레터 자동화 메인 실행 스크립트
 """
 import argparse
-import asyncio
 from datetime import datetime
 from typing import List
 
@@ -11,44 +10,10 @@ from collectors.base import ContentItem
 from collectors.government_support import GovernmentSupportCollector
 from collectors.google_news import GoogleNewsCollector
 from collectors.blog_collector import NaverBlogCollector
-from collectors.naver_cafe_playwright import NaverCafePlaywrightCrawler
 from ai_filter import filter_content
 from newsletter_generator import save_newsletter, get_week_info
 from kakao_sender import send_newsletter
 from config import SEARCH_KEYWORDS
-
-
-async def collect_from_cafes_async() -> List[ContentItem]:
-    """Playwright로 카페 콘텐츠 수집 (비동기) - 확장된 키워드"""
-    crawler = NaverCafePlaywrightCrawler()
-    
-    # 확장된 키워드 - 운영자 관점 콘텐츠
-    cafe_keywords = [
-        "캠핑장 후기",
-        "캠핑장 추천", 
-        "캠핑장 사장님",
-        "캠핑장 청결",
-        "캠핑장 시설",
-        "캠핑장 서비스",
-        "캠핑장 재방문",
-    ]
-    
-    articles = await crawler.crawl_all_cafes(
-        keywords=cafe_keywords[:4],  # 상위 4개 키워드
-        max_per_cafe=8  # 카페당 8개로 증가
-    )
-    
-    # ContentItem으로 변환
-    items = []
-    for article in articles:
-        items.append(ContentItem(
-            title=article.title,
-            url=article.url,
-            source=f"카페: {article.cafe_name}",
-            description=f"[{article.board_name}] {article.content_preview}" if article.content_preview else article.board_name,
-            category="카페후기"
-        ))
-    return items
 
 
 
