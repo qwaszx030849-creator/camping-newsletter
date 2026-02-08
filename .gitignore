@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+.venv
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Output (GitHub Actions에서 생성됨)
+# output/
+# archive/
+
+# Node modules (dashboard)
+node_modules/
+.next/
