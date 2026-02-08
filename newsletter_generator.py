@@ -37,6 +37,7 @@ def get_week_info(date: datetime = None) -> dict:
 def generate_newsletter_text(items: List[ContentItem], week_info: dict = None) -> str:
     """
     Generate newsletter text content for KakaoTalk
+    카카오톡에서 예쁘게 보이는 포맷
     
     Args:
         items: List of filtered ContentItem objects
@@ -48,50 +49,43 @@ def generate_newsletter_text(items: List[ContentItem], week_info: dict = None) -
     if week_info is None:
         week_info = get_week_info()
     
-    # Header
+    # 카카오톡 스타일 헤더
     lines = [
-        f"{NEWSLETTER_TITLE_PREFIX}",
-        f"{week_info['display']}",
+        "┏━━━━━━━━━━━━━━━━━━━┓",
+        f"  🏕️ 캠핑장 운영 뉴스레터",
+        f"  📅 {week_info['display']}",
+        "┗━━━━━━━━━━━━━━━━━━━┛",
         "",
-        "━━━━━━━━━━━━━━━━━━━━",
-        ""
     ]
     
-    # Content items
-    category_emoji = {
-        "정책": "📋",
-        "트렌드": "📈",
-        "운영팁": "💡",
-        "마케팅": "📢",
-        "시설": "🏕️",
-        "이벤트": "🎪",
-        "뉴스": "📰",
-        "기타": "📌"
-    }
-    
+    # 콘텐츠 아이템 (카카오톡 가독성 높은 포맷)
     for i, item in enumerate(items, 1):
-        emoji = category_emoji.get(item.category, "📌")
-        category = item.category or "기타"
+        # 제목 줄
+        lines.append(f"📌 {i}. {item.title}")
+        lines.append("")
         
-        lines.append(f"{i}. [{category}] {item.title}")
-        
-        # Add summary if available
+        # 설명 (있으면)
         if item.description:
-            short_desc = item.description[:80]
-            if len(item.description) > 80:
+            short_desc = item.description[:60]
+            if len(item.description) > 60:
                 short_desc += "..."
-            lines.append(f"   {emoji} {short_desc}")
+            lines.append(f"💬 {short_desc}")
+            lines.append("")
         
-        lines.append(f"   🔗 {item.url}")
+        # 링크
+        lines.append(f"🔗 {item.url}")
+        lines.append("")
+        lines.append("─────────────────────")
         lines.append("")
     
-    # Footer
+    # 푸터
     lines.extend([
-        "━━━━━━━━━━━━━━━━━━━━",
-        "📊 지난 뉴스레터 모아보기:",
-        "https://camping-newsletter.vercel.app",
         "",
-        "매주 월요일 오전 9시 발송됩니다."
+        "📊 지난 뉴스레터 모아보기",
+        "👉 camping-newsletter.vercel.app",
+        "",
+        "💡 매주 월요일 오전 9시 발송",
+        "━━━━━━━━━━━━━━━━━━━━━"
     ])
     
     return "\n".join(lines)
