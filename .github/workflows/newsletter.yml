@@ -9,6 +9,8 @@ on:
 jobs:
   generate-newsletter:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 저장소에 push 권한
     
     steps:
       - name: Checkout repository
