@@ -3,8 +3,11 @@ Camping Newsletter Automation - Main Script
 캠핑장 뉴스레터 자동화 메인 실행 스크립트
 """
 import argparse
+import json
+import os
+import glob
 from datetime import datetime
-from typing import List
+from typing import List, Set
 
 from collectors.base import ContentItem
 from collectors.government_support import GovernmentSupportCollector
@@ -14,6 +17,36 @@ from ai_filter import filter_content
 from newsletter_generator import save_newsletter, get_week_info
 from kakao_sender import send_newsletter
 from config import SEARCH_KEYWORDS
+
+
+def _load_previous_urls() -> Set[str]:
+    """이전 뉴스레터에서 사용된 URL 목록을 로드하여 중복 방지"""
+    used_urls = set()
+    archive_dir = os.path.join(os.path.dirname(__file__), "archive")
+    
+    # archive 폴더의 모든 JSON 파일에서 URL 수집
+    for json_file in glob.glob(os.path.join(archive_dir, "**", "*.json"), recursive=True):
+        try:
+            with open(json_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                for item in data.get("items", []):
+                    url = item.get("url", "")
+                    if url:
+                        used_urls.add(url)
+        except (json.JSONDecodeError, Exception):
+            continue
+    
+    print(f"📋 이전 뉴스레터에서 {len(used_urls)}개 URL 중복 방지 목록 로드")
+    return used_urls
+
+
+def _remove_previously_used(items: List[ContentItem], used_urls: Set[str]) -> List[ContentItem]:
+    """이전 뉴스레터에 이미 사용된 URL 제거"""
+    new_items = [item for item in items if item.url not in used_urls]
+    removed = len(items) - len(new_items)
+    if removed > 0:
+        print(f"   🔄 이전 뉴스레터 중복 {removed}개 제거")
+    return new_items
 
 
 
@@ -124,8 +157,12 @@ def collect_all_content() -> List[ContentItem]:
     # 중복 블로그 제거 (같은 블로거 글 1개로 제한)
     unique_items = _remove_duplicate_bloggers(all_items)
     
-    print(f"\n📊 수집 완료: {len(all_items)}개 → 중복 제거 후 {len(unique_items)}개")
-    return unique_items
+    # 이전 뉴스레터에 사용된 URL 제거
+    used_urls = _load_previous_urls()
+    fresh_items = _remove_previously_used(unique_items, used_urls)
+    
+    print(f"\n📊 수집 완료: {len(all_items)}개 → 블로거 중복 제거 {len(unique_items)}개 → 이전 뉴스레터 중복 제거 {len(fresh_items)}개")
+    return fresh_items
 
 
 def _remove_duplicate_bloggers(items: List[ContentItem]) -> List[ContentItem]:

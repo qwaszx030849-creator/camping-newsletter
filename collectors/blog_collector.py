@@ -58,9 +58,9 @@ class NaverBlogCollector(BaseCollector):
                 
                 params = {
                     "query": search_query,
-                    "display": max_items_per_keyword * 3,  # 필터링 위해 더 많이 가져옴
+                    "display": max_items_per_keyword * 5,  # 중복 제거 위해 충분히 가져옴
                     "start": 1,
-                    "sort": "sim"  # 정확도순으로 변경
+                    "sort": "date"  # 날짜순으로 매주 새로운 콘텐츠 확보
                 }
                 
                 response = requests.get(self.API_URL, headers=headers, params=params, timeout=10)
