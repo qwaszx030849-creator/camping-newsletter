@@ -47,8 +47,8 @@ class KakaoSender:
         if not self.api_key:
             return {
                 "success": False,
-                "error": "Kakao API key not configured",
-                "message": "Please set KAKAO_API_KEY in .env file"
+                "error": "카카오 API 키가 설정되지 않았습니다",
+                "message": ".env 파일에 KAKAO_API_KEY를 설정해주세요"
             }
         
         headers = {
@@ -99,8 +99,8 @@ class KakaoSender:
         
         return {
             "success": False,
-            "error": "Alimtalk not yet configured",
-            "message": "Please set up Kakao Business API first. See docs: https://business.kakao.com"
+            "error": "알림톡이 아직 설정되지 않았습니다",
+            "message": "카카오 비즈니스 API를 먼저 설정해주세요. 문서 참조: https://business.kakao.com"
         }
 
 
@@ -118,10 +118,10 @@ def send_newsletter(message: str, test_mode: bool = True) -> dict:
     sender = KakaoSender()
     
     if test_mode:
-        print("Sending newsletter in TEST MODE (to self only)")
+        print("테스트 모드로 뉴스레터 발송 (나에게만 전송)")
         return sender.send_to_me(message)
     else:
-        print("Sending newsletter to all recipients")
+        print("모든 수신자에게 뉴스레터 발송")
         return sender.send_alimtalk(message)
 
 

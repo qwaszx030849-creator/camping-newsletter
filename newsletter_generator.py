@@ -49,43 +49,39 @@ def generate_newsletter_text(items: List[ContentItem], week_info: dict = None) -
     if week_info is None:
         week_info = get_week_info()
     
-    # 카카오톡 스타일 헤더
+    # 카카오톡 스타일 헤더 (호환성 높은 포맷)
     lines = [
-        "┏━━━━━━━━━━━━━━━━━━━┓",
-        f"  🏕️ 캠핑장 운영 뉴스레터",
-        f"  📅 {week_info['display']}",
-        "┗━━━━━━━━━━━━━━━━━━━┛",
+        f"🏕️ 캠핑장 운영 뉴스레터",
+        f"📅 {week_info['display']}",
+        "",
+        "ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ",
         "",
     ]
     
-    # 콘텐츠 아이템 (카카오톡 가독성 높은 포맷)
+    # 콘텐츠 아이템
     for i, item in enumerate(items, 1):
-        # 제목 줄
         lines.append(f"📌 {i}. {item.title}")
         lines.append("")
         
-        # 설명 (있으면)
         if item.description:
-            short_desc = item.description[:60]
-            if len(item.description) > 60:
+            short_desc = item.description[:50]
+            if len(item.description) > 50:
                 short_desc += "..."
             lines.append(f"💬 {short_desc}")
             lines.append("")
         
-        # 링크
         lines.append(f"🔗 {item.url}")
         lines.append("")
-        lines.append("─────────────────────")
+        lines.append("ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ")
         lines.append("")
     
     # 푸터
     lines.extend([
         "",
-        "📊 지난 뉴스레터 모아보기",
+        "📊 지난 뉴스레터 보기",
         "👉 camping-newsletter.vercel.app",
         "",
-        "💡 매주 월요일 오전 9시 발송",
-        "━━━━━━━━━━━━━━━━━━━━━"
+        "💡 매주 월요일 발송"
     ])
     
     return "\n".join(lines)

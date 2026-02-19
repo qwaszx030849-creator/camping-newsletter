@@ -9,6 +9,22 @@ export default async function Home() {
             <header className="header">
                 <h1>🏕️ 캠핑장 뉴스레터</h1>
                 <p>캠핑장 사장님을 위한 주간 뉴스레터 아카이브</p>
+                <Link
+                    href="/kakao"
+                    style={{
+                        display: 'inline-block',
+                        marginTop: '1rem',
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#FEE500',
+                        color: '#3C1E1E',
+                        borderRadius: '0.75rem',
+                        fontWeight: 'bold',
+                        textDecoration: 'none',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                    }}
+                >
+                    📱 카카오톡 전송용 복사하기
+                </Link>
             </header>
 
             {newsletters.length === 0 ? (

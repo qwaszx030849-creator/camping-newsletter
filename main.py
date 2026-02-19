@@ -158,92 +158,93 @@ def run_newsletter_pipeline(test_mode: bool = True, skip_send: bool = False):
     """
     start_time = datetime.now()
     print("\n" + "=" * 60)
-    print("🏕️  CAMPING NEWSLETTER AUTOMATION")
+    print("\n" + "=" * 60)
+    print("🏕️  캠핑장 뉴스레터 자동화 시스템")
     print("=" * 60)
-    print(f"Started at: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"시작 시간: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # Step 1: Collect content
+    # 1단계: 콘텐츠 수집
     all_items = collect_all_content()
     
     if not all_items:
-        print("\n❌ No content collected. Exiting.")
+        print("\n❌ 수집된 콘텐츠가 없습니다. 종료합니다.")
         return
     
-    # Step 2: AI Filter
+    # 2단계: AI 필터링
     print("\n" + "=" * 50)
-    print("🤖 Filtering with AI...")
+    print("🤖 AI 필터링 중...")
     print("=" * 50)
     
     filtered_items = filter_content(all_items)
-    print(f"Selected {len(filtered_items)} items from {len(all_items)} candidates")
+    print(f"총 {len(all_items)}개 중 {len(filtered_items)}개 선별됨")
     
     for i, item in enumerate(filtered_items, 1):
         print(f"  {i}. [{item.category}] {item.title[:50]}...")
     
-    # Step 3: Generate Newsletter
+    # 3단계: 뉴스레터 생성
     print("\n" + "=" * 50)
-    print("📝 Generating newsletter...")
+    print("📝 뉴스레터 생성 중...")
     print("=" * 50)
     
     week_info = get_week_info()
     result = save_newsletter(filtered_items, week_info)
     
-    print("\n📄 Newsletter Preview:")
+    print("\n📄 뉴스레터 미리보기:")
     print("-" * 40)
     print(result["text_content"][:500] + "...")
     
-    # Step 4: Send via KakaoTalk
+    # 4단계: 카카오톡 발송
     if not skip_send:
         print("\n" + "=" * 50)
-        print("📨 Sending via KakaoTalk...")
+        print("📨 카카오톡 발송 중...")
         print("=" * 50)
         
         send_result = send_newsletter(result["text_content"], test_mode=test_mode)
         
         if send_result.get("success"):
-            print("✅ Newsletter sent successfully!")
+            print("✅ 뉴스레터 발송 성공!")
         else:
-            print(f"⚠️ Send result: {send_result.get('error', 'Unknown error')}")
+            print(f"⚠️ 발송 결과: {send_result.get('error', '알 수 없는 오류')}")
     else:
-        print("\n⏭️ Skipping KakaoTalk send (--skip-send flag)")
+        print("\n⏭️ 카카오톡 발송 건너뜀 (--skip-send 옵션)")
     
-    # Summary
+    # 요약
     end_time = datetime.now()
     duration = (end_time - start_time).total_seconds()
     
     print("\n" + "=" * 60)
-    print("✅ PIPELINE COMPLETE")
+    print("✅ 프로세스 완료")
     print("=" * 60)
-    print(f"Duration: {duration:.1f} seconds")
-    print(f"Items collected: {len(all_items)}")
-    print(f"Items selected: {len(filtered_items)}")
-    print(f"Newsletter saved to: {result['text_path']}")
-    print(f"Archive saved to: {result['archive_path']}")
+    print(f"소요 시간: {duration:.1f} 초")
+    print(f"수집된 항목: {len(all_items)}개")
+    print(f"선별된 항목: {len(filtered_items)}개")
+    print(f"뉴스레터 저장: {result['text_path']}")
+    print(f"아카이브 저장: {result['archive_path']}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Camping Newsletter Automation")
+    parser = argparse.ArgumentParser(description="캠핑장 뉴스레터 자동화")
     parser.add_argument(
         "--test-mode",
         action="store_true",
-        help="Run in test mode (send only to self)"
+        help="테스트 모드로 실행 (나에게만 발송)"
     )
     parser.add_argument(
         "--skip-send",
         action="store_true",
-        help="Skip KakaoTalk sending"
+        help="카카오톡 발송 건너뛰기"
     )
     parser.add_argument(
         "--collect-only",
         action="store_true",
-        help="Only collect content, don't filter or send"
+        help="콘텐츠 수집만 실행 (필터링 및 발송 제외)"
     )
     
     args = parser.parse_args()
     
     if args.collect_only:
         items = collect_all_content()
-        print(f"\nCollected {len(items)} items. Exiting without filtering.")
+        print(f"\n{len(items)}개 항목 수집됨. 필터링 없이 종료합니다.")
     else:
         run_newsletter_pipeline(
             test_mode=args.test_mode or True,  # Default to test mode
