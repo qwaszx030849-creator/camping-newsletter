@@ -68,16 +68,17 @@ def collect_all_content() -> List[ContentItem]:
     blog_collector = NaverBlogCollector()
     
     # ========================================
-    # 1. 캠핑장 운영자 실제 후기/노하우
+    # 1. 캠핑장 운영 실전 노하우
     # "타 캠핑장에서는 이렇게도 하는구나"
     # ========================================
-    print("\n🏆 [1] 캠핑장 운영자 노하우...")
+    print("\n🏆 [1] 캠핑장 운영 실전 노하우...")
     try:
         operator_keywords = [
-            "캠핑장 운영 노하우",
-            "캠핑장 사장 후기", 
-            "캠핑장 창업 경험",
-            "글램핑장 운영 일지",
+            "캠핑장 사장 매출 운영",
+            "캠핑장 예약률 높이는 방법",
+            "캠핑장 성수기 준비 체크리스트",
+            "캠핑장 비수기 매출 올리는 방법",
+            "캠핑장 운영자 고충 해결",
         ]
         operator_items = blog_collector.collect(operator_keywords)
         all_items.extend(operator_items)
@@ -86,33 +87,33 @@ def collect_all_content() -> List[ContentItem]:
         print(f"   ❌ Error: {e}")
     
     # ========================================
-    # 2. 고객 리뷰에서 배우는 점
+    # 2. 인기 캠핑장 성공 비결
     # "이러니 장사가 잘되는구나"
     # ========================================
-    print("\n💬 [2] 고객 만족/불만 사례...")
+    print("\n💬 [2] 인기 캠핑장 성공 비결...")
     try:
-        review_keywords = [
-            "캠핑장 화장실 청결 좋았다",
-            "캠핑장 사장님 친절",
-            "캠핑장 재방문 이유",
-            "캠핑장 별점 5점",
+        success_keywords = [
+            "캠핑장 예약 마감 인기 비결",
+            "캠핑장 재방문율 높은 이유",
+            "캠핑장 화장실 청결 관리 비결",
+            "캠핑장 리뷰 별점 높은 비결",
         ]
-        review_items = blog_collector.collect(review_keywords)
-        all_items.extend(review_items)
-        print(f"   ✅ {len(review_items)}개 수집")
+        success_items = blog_collector.collect(success_keywords)
+        all_items.extend(success_items)
+        print(f"   ✅ {len(success_items)}개 수집")
     except Exception as e:
         print(f"   ❌ Error: {e}")
     
     # ========================================
-    # 3. 캠핑 트렌드 & 뉴스
+    # 3. 캠핑 산업 트렌드 & 뉴스
     # "생태계 흐름에 맞춰야겠구나"
     # ========================================
-    print("\n📈 [3] 캠핑 트렌드 뉴스...")
+    print("\n📈 [3] 캠핑 산업 트렌드 뉴스...")
     try:
         trend_keywords = [
-            "캠핑 트렌드",
-            "글램핑 인기",
-            "캠핑장 예약률 상승",
+            "캠핑장 산업 동향",
+            "캠핑장 이용객 통계",
+            "글램핑 트렌드 변화",
         ]
         news_collector = GoogleNewsCollector()
         trend_items = news_collector.collect(trend_keywords)
@@ -122,15 +123,16 @@ def collect_all_content() -> List[ContentItem]:
         print(f"   ❌ Error: {e}")
     
     # ========================================
-    # 4. 시설 투자/개선 사례
+    # 4. 캠핑장 시설 관리 & 마케팅
     # "온/오프라인 관리가 중요하구나"
     # ========================================
-    print("\n🏕️ [4] 시설 투자 사례...")
+    print("\n🏕️ [4] 캠핑장 시설 및 마케팅...")
     try:
         facility_keywords = [
-            "캠핑장 화장실 리모델링",
-            "캠핑장 시설 개선 효과",
-            "글램핑 시설 투자",
+            "캠핑장 시설 리뷰 좋은 곳 비결",
+            "캠핑장 네이버플레이스 상위노출",
+            "캠핑장 인스타그램 마케팅 효과",
+            "캠핑장 온라인 예약 시스템",
         ]
         facility_items = blog_collector.collect(facility_keywords)
         all_items.extend(facility_items)
@@ -139,18 +141,18 @@ def collect_all_content() -> List[ContentItem]:
         print(f"   ❌ Error: {e}")
     
     # ========================================
-    # 5. 이벤트/프로모션 사례
+    # 5. 계절별 운영/이벤트 전략
     # ========================================
-    print("\n🎉 [5] 이벤트 성공 사례...")
+    print("\n🎉 [5] 계절별 운영 전략...")
     try:
-        event_keywords = [
-            "캠핑장 이벤트 성공",
-            "캠핑장 프로모션 효과",
-            "캠핑장 비수기 마케팅",
+        seasonal_keywords = [
+            "캠핑장 겨울 운영 전략",
+            "캠핑장 여름 성수기 대비",
+            "캠핑장 비수기 프로그램 아이디어",
         ]
-        event_items = blog_collector.collect(event_keywords)
-        all_items.extend(event_items)
-        print(f"   ✅ {len(event_items)}개 수집")
+        seasonal_items = blog_collector.collect(seasonal_keywords)
+        all_items.extend(seasonal_items)
+        print(f"   ✅ {len(seasonal_items)}개 수집")
     except Exception as e:
         print(f"   ❌ Error: {e}")
     
