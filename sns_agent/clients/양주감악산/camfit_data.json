@@ -1,0 +1,22 @@
+{
+    "_guide": {
+        "설명": "캠핏 어드민에서 가져온 데이터를 여기에 입력하세요",
+        "업데이트_주기": "월 1회 (매월 1일)",
+        "입력_방법": "캠핏 관리자 어드민에서 직접 확인 후 수동 입력 또는 자동화 연동"
+    },
+    "data_date": null,
+    "occupancy_rate": null,
+    "occupancy_by_week": {
+        "week1": null,
+        "week2": null,
+        "week3": null,
+        "week4": null
+    },
+    "recent_reviews": [],
+    "peak_days": [],
+    "low_days": [],
+    "monthly_revenue_trend": null,
+    "cancellation_rate": null,
+    "repeat_customer_rate": null,
+    "top_review_keywords": []
+}

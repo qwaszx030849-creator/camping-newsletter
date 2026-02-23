@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>더빌리지 2026년 2월 SNS 성과 리포트</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #0D9488;
+    --accent: #FF6B35;
+    --text: #1E293B;
+    --muted: #64748B;
+    --bg: #F8FAFC;
+    --card: #FFFFFF;
+    --border: #E2E8F0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); }
+  .container { max-width: 720px; margin: 0 auto; padding: 40px 24px; }
+  
+  .header { background: linear-gradient(135deg, var(--primary) 0%, #0F766E 100%); border-radius: 20px; padding: 40px; color: white; text-align: center; margin-bottom: 32px; }
+  .header h1 { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
+  .header .period { opacity: 0.85; font-size: 15px; }
+  .tier-badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 6px 16px; border-radius: 20px; font-size: 13px; margin-top: 12px; }
+  
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .card { background: var(--card); border-radius: 16px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid var(--border); }
+  .card h3 { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+  .stat { font-size: 36px; font-weight: 900; color: var(--primary); }
+  .stat-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .status-done { color: #10B981; font-weight: 700; }
+  
+  .section-title { font-size: 18px; font-weight: 700; margin: 32px 0 16px; display: flex; align-items: center; gap: 8px; }
+  
+  .content-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .content-row:last-child { border-bottom: none; }
+  .content-label { font-size: 15px; font-weight: 500; }
+  .content-count { font-size: 15px; color: var(--muted); }
+  .progress-bar { height: 8px; background: var(--border); border-radius: 4px; margin-top: 6px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), #14B8A6); border-radius: 4px; transition: width 1s ease; }
+  
+  .camfit-box { background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%); border: 1px solid #FED7AA; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+  .camfit-box h3 { color: var(--accent); font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .data-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #FED7AA; font-size: 14px; }
+  .data-row:last-child { border-bottom: none; }
+  
+  .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <p class="period">2026년 2월 월간 성과 리포트</p>
+    <h1>더빌리지</h1>
+    <span class="tier-badge">🌱 스타터 | 월 20만원</span>
+  </div>
+  
+  <div class="grid-2">
+    <div class="card">
+      <h3>📸 인스타그램</h3>
+      <div class="stat">0<span style="font-size:20px;color:#94A3B8">/4</span></div>
+      <div class="stat-sub">포스트 발행 완료</div>
+      <div class="progress-bar" style="margin-top:12px"><div class="progress-fill" style="width:0%"></div></div>
+    </div>
+    <div class="card">
+      <h3>📝 네이버 블로그</h3>
+      <div class="stat">0<span style="font-size:20px;color:#94A3B8">/2</span></div>
+      <div class="stat-sub">포스트 발행 완료</div>
+      <div class="progress-bar" style="margin-top:12px"><div class="progress-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+  
+  <div class="camfit-box">
+    <h3>🔑 캠핏 데이터 연동 현황</h3>
+    <div class="data-row"><span>이번 달 예약률</span><span><strong>데이터 입력 필요</strong></span></div>
+    <div class="data-row"><span>리뷰 활용</span><span><strong>없음</strong></span></div>
+    <div class="data-row"><span>캠핏 연동 상태</span><span class="status-done">✅ 연동 완료</span></div>
+  </div>
+  
+  <div class="footer">
+    <strong>캠핏 마케팅 대행</strong> | 캠핑장 전문 SNS 관리 서비스<br>
+    캠핏 플랫폼 어드민 데이터 연동으로 경쟁사 대비 차별화된 마케팅 제공
+  </div>
+</div>
+</body>
+</html>

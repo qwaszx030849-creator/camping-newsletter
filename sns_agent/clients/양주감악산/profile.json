@@ -1,0 +1,80 @@
+{
+    "client_id": "양주감악산",
+    "name": "양주 감악산 캠핑장",
+    "tier": "스타터",
+    "monthly_fee": 200000,
+    "vat_fee": 220000,
+    "start_date": "2026-02-20",
+    "contact": {
+        "name": "",
+        "phone": "",
+        "kakao_id": ""
+    },
+    "location": {
+        "address": "경기도 양주시",
+        "region": "경기북부",
+        "nearby_landmark": "감악산"
+    },
+    "camfit": {
+        "camp_id": "",
+        "admin_accessible": true,
+        "note": "캠핏 어드민 접근 가능 - 예약률/리뷰/방문객 데이터 활용"
+    },
+    "brand": {
+        "main_concept": "감악산 자락 자연 친화 캠핑",
+        "tone": "감성적이고 따뜻한 자연, 수도권 접근성 강조",
+        "color_keywords": [
+            "산",
+            "숲",
+            "감악산",
+            "자연",
+            "힐링",
+            "주말여행"
+        ],
+        "target_customer": "수도권 30~40대 가족·커플 캠퍼 (서울·경기권 주말 나들이)",
+        "usp": [
+            "감악산 뷰",
+            "수도권 접근성",
+            "캠핏 예약 가능"
+        ]
+    },
+    "sns_channels": {
+        "instagram": {
+            "handle": "",
+            "url": "",
+            "active": false
+        },
+        "naver_blog": {
+            "url": "",
+            "active": true,
+            "note": "기존 블로그 작업 이력 있음"
+        },
+        "naver_place": {
+            "url": "",
+            "active": false
+        }
+    },
+    "service_scope": {
+        "스타터": {
+            "instagram_posts": 4,
+            "blog_posts": 2,
+            "stories": 0,
+            "reels": 0,
+            "camfit_monthly_report": true
+        }
+    },
+    "content_themes": {
+        "recurring": [
+            "주말 날씨 + 캠핑 추천 포스트",
+            "시설 소개 (사이트/화장실/샤워시설)",
+            "주변 관광 명소 안내",
+            "시즌 이벤트/프로모션"
+        ],
+        "camfit_data_driven": [
+            "예약률 낮은 주 → 공실 프로모션 콘텐츠 자동 생성",
+            "좋은 리뷰 발굴 → 인스타 콘텐츠로 재활용",
+            "성수기 예측 → 사전 예약 유도 콘텐츠"
+        ]
+    },
+    "notes": "현재 계약 중인 파일럿 클라이언트(스타터 20만원). 보유 자산: 리뷰 사진 35장(review-photo-downloader/downloads), 사이트 사진 13장(캠핏/사진/감악산). 캠핏 입점 완료."
+}
