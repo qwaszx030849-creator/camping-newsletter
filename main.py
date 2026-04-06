@@ -54,107 +54,125 @@ def collect_all_content() -> List[ContentItem]:
     """
     캠지기 메타인지 향상을 위한 콘텐츠 수집
     
+    핵심 원칙: "캠핑장 사장님이 읽고 이번 주에 바로 써먹을 수 있는가?"
+    
     목표:
-    - "타 캠핑장에서는 이렇게도 하는구나"
-    - "이러니 장사가 잘되는구나"  
-    - "생태계 흐름에 맞춰야겠구나"
-    - "온/오프라인 관리가 중요하구나"
+    - "타 캠핑장에서는 이렇게도 하는구나" (운영 노하우)
+    - "이러니 장사가 잘되는구나" (매출/성공 사례)
+    - "생태계 흐름에 맞춰야겠구나" (산업 뉴스)
+    - "온/오프라인 관리가 중요하구나" (마케팅/리뷰)
     """
     print("=" * 50)
-    print("📡 캠지기 메타인지 향상 콘텐츠 수집")
+    print("  camji-gi metainzi hyangsang contents sujib")
     print("=" * 50)
     
     all_items = []
     blog_collector = NaverBlogCollector()
     
     # ========================================
-    # 1. 캠핑장 운영 실전 노하우
-    # "타 캠핑장에서는 이렇게도 하는구나"
-    # ========================================
-    print("\n🏆 [1] 캠핑장 운영 실전 노하우...")
-    try:
-        operator_keywords = [
-            "캠핑장 사장 매출 운영",
-            "캠핑장 예약률 높이는 방법",
-            "캠핑장 성수기 준비 체크리스트",
-            "캠핑장 비수기 매출 올리는 방법",
-            "캠핑장 운영자 고충 해결",
-        ]
-        operator_items = blog_collector.collect(operator_keywords)
-        all_items.extend(operator_items)
-        print(f"   ✅ {len(operator_items)}개 수집")
-    except Exception as e:
-        print(f"   ❌ Error: {e}")
-    
-    # ========================================
-    # 2. 인기 캠핑장 성공 비결
+    # 1. 캠핑장 매출/수익 실전 사례
     # "이러니 장사가 잘되는구나"
     # ========================================
-    print("\n💬 [2] 인기 캠핑장 성공 비결...")
+    print("\n[1] campingJang maechul/sueik silJeon saRye...")
     try:
-        success_keywords = [
-            "캠핑장 예약 마감 인기 비결",
-            "캠핑장 재방문율 높은 이유",
-            "캠핑장 화장실 청결 관리 비결",
-            "캠핑장 리뷰 별점 높은 비결",
+        revenue_keywords = [
+            "캠핑장 운영 매출 올리는 방법",
+            "캠핑장 사장님 수익 노하우",
+            "글램핑장 운영 수익 구조",
+            "캠핑장 비수기 매출 전략 운영자",
+            "캠핑장 성수기 매출 극대화 운영",
         ]
-        success_items = blog_collector.collect(success_keywords)
-        all_items.extend(success_items)
-        print(f"   ✅ {len(success_items)}개 수집")
+        revenue_items = blog_collector.collect(revenue_keywords)
+        all_items.extend(revenue_items)
+        print(f"   -> {len(revenue_items)}gae sujib")
     except Exception as e:
-        print(f"   ❌ Error: {e}")
+        print(f"   Error: {e}")
     
     # ========================================
-    # 3. 캠핑 산업 트렌드 & 뉴스
+    # 2. 예약률/재방문율 높이기
+    # "타 캠핑장에서는 이렇게도 하는구나"
+    # ========================================
+    print("\n[2] yeYagRyul/jaeBangMunRyul nopigi...")
+    try:
+        booking_keywords = [
+            "캠핑장 예약률 높이는 운영 노하우",
+            "캠핑장 재방문율 높이는 사장님 전략",
+            "캠핑장 고객 만족도 올리는 방법",
+            "캠핑장 리뷰 관리 별점 올리기",
+        ]
+        booking_items = blog_collector.collect(booking_keywords)
+        all_items.extend(booking_items)
+        print(f"   -> {len(booking_items)}gae sujib")
+    except Exception as e:
+        print(f"   Error: {e}")
+    
+    # ========================================
+    # 3. 캠핑장 온라인 마케팅 실전
+    # "온/오프라인 관리가 중요하구나"
+    # ========================================
+    print("\n[3] online marketing silJeon...")
+    try:
+        marketing_keywords = [
+            "캠핑장 네이버플레이스 상위노출 운영",
+            "캠핑장 인스타그램 마케팅 예약 증가",
+            "캠핑장 블로그 마케팅 효과 매출",
+            "글램핑장 온라인 마케팅 성공사례",
+        ]
+        marketing_items = blog_collector.collect(marketing_keywords)
+        all_items.extend(marketing_items)
+        print(f"   -> {len(marketing_items)}gae sujib")
+    except Exception as e:
+        print(f"   Error: {e}")
+    
+    # ========================================
+    # 4. 캠핑 산업 트렌드 & 뉴스
     # "생태계 흐름에 맞춰야겠구나"
     # ========================================
-    print("\n📈 [3] 캠핑 산업 트렌드 뉴스...")
+    print("\n[4] camping sanUp trend & news...")
     try:
         trend_keywords = [
-            "캠핑장 산업 동향",
-            "캠핑장 이용객 통계",
-            "글램핑 트렌드 변화",
+            "캠핑장 산업 동향 2026",
+            "캠핑장 운영 트렌드 변화",
+            "글램핑 시장 성장 동향",
         ]
         news_collector = GoogleNewsCollector()
         trend_items = news_collector.collect(trend_keywords)
         all_items.extend(trend_items)
-        print(f"   ✅ {len(trend_items)}개 수집")
+        print(f"   -> {len(trend_items)}gae sujib")
     except Exception as e:
-        print(f"   ❌ Error: {e}")
+        print(f"   Error: {e}")
     
     # ========================================
-    # 4. 캠핑장 시설 관리 & 마케팅
-    # "온/오프라인 관리가 중요하구나"
+    # 5. 시설 개선 & 운영 효율화
     # ========================================
-    print("\n🏕️ [4] 캠핑장 시설 및 마케팅...")
+    print("\n[5] siSeol gaeSeon & unYeong hyoYulHwa...")
     try:
         facility_keywords = [
-            "캠핑장 시설 리뷰 좋은 곳 비결",
-            "캠핑장 네이버플레이스 상위노출",
-            "캠핑장 인스타그램 마케팅 효과",
-            "캠핑장 온라인 예약 시스템",
+            "캠핑장 시설 개선 후 예약률 상승 사례",
+            "캠핑장 화장실 리모델링 효과 운영",
+            "캠핑장 사이트 조성 운영자 후기",
         ]
         facility_items = blog_collector.collect(facility_keywords)
         all_items.extend(facility_items)
-        print(f"   ✅ {len(facility_items)}개 수집")
+        print(f"   -> {len(facility_items)}gae sujib")
     except Exception as e:
-        print(f"   ❌ Error: {e}")
+        print(f"   Error: {e}")
     
     # ========================================
-    # 5. 계절별 운영/이벤트 전략
+    # 6. 정부 지원/정책
     # ========================================
-    print("\n🎉 [5] 계절별 운영 전략...")
+    print("\n[6] jeongBu jiWon/jeongChaek...")
     try:
-        seasonal_keywords = [
-            "캠핑장 겨울 운영 전략",
-            "캠핑장 여름 성수기 대비",
-            "캠핑장 비수기 프로그램 아이디어",
+        gov_keywords = [
+            "캠핑장 지원사업 보조금 2026",
+            "야영장 인허가 정책 변경",
+            "관광사업 소상공인 캠핑장 지원금",
         ]
-        seasonal_items = blog_collector.collect(seasonal_keywords)
-        all_items.extend(seasonal_items)
-        print(f"   ✅ {len(seasonal_items)}개 수집")
+        gov_items = blog_collector.collect(gov_keywords)
+        all_items.extend(gov_items)
+        print(f"   -> {len(gov_items)}gae sujib")
     except Exception as e:
-        print(f"   ❌ Error: {e}")
+        print(f"   Error: {e}")
     
     # 중복 블로그 제거 (같은 블로거 글 1개로 제한)
     unique_items = _remove_duplicate_bloggers(all_items)
@@ -197,68 +215,67 @@ def run_newsletter_pipeline(test_mode: bool = True, skip_send: bool = False):
     """
     start_time = datetime.now()
     print("\n" + "=" * 60)
-    print("\n" + "=" * 60)
-    print("🏕️  캠핑장 뉴스레터 자동화 시스템")
+    print("  campingJang newsletter jadongHwa system")
     print("=" * 60)
-    print(f"시작 시간: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"siJak siGan: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     
     # 1단계: 콘텐츠 수집
     all_items = collect_all_content()
     
     if not all_items:
-        print("\n❌ 수집된 콘텐츠가 없습니다. 종료합니다.")
+        print("\n  suJibdoen contents eobseum. jongRyo.")
         return
     
     # 2단계: AI 필터링
     print("\n" + "=" * 50)
-    print("🤖 AI 필터링 중...")
+    print("  contents filtering...")
     print("=" * 50)
     
     filtered_items = filter_content(all_items)
-    print(f"총 {len(all_items)}개 중 {len(filtered_items)}개 선별됨")
+    print(f"chong {len(all_items)}gae jung {len(filtered_items)}gae seonByeol")
     
     for i, item in enumerate(filtered_items, 1):
         print(f"  {i}. [{item.category}] {item.title[:50]}...")
     
     # 3단계: 뉴스레터 생성
     print("\n" + "=" * 50)
-    print("📝 뉴스레터 생성 중...")
+    print("  newsletter saengSeong...")
     print("=" * 50)
     
     week_info = get_week_info()
     result = save_newsletter(filtered_items, week_info)
     
-    print("\n📄 뉴스레터 미리보기:")
+    print("\n  newsletter preview:")
     print("-" * 40)
     print(result["text_content"][:500] + "...")
     
     # 4단계: 카카오톡 발송
     if not skip_send:
         print("\n" + "=" * 50)
-        print("📨 카카오톡 발송 중...")
+        print("  KakaoTalk balSong...")
         print("=" * 50)
         
         send_result = send_newsletter(result["text_content"], test_mode=test_mode)
         
         if send_result.get("success"):
-            print("✅ 뉴스레터 발송 성공!")
+            print("  newsletter balSong seongGong!")
         else:
-            print(f"⚠️ 발송 결과: {send_result.get('error', '알 수 없는 오류')}")
+            print(f"  balSong gyeolGwa: {send_result.get('error', 'unknown error')}")
     else:
-        print("\n⏭️ 카카오톡 발송 건너뜀 (--skip-send 옵션)")
+        print("\n  KakaoTalk balSong geonNeoTtwim (--skip-send)")
     
     # 요약
     end_time = datetime.now()
     duration = (end_time - start_time).total_seconds()
     
     print("\n" + "=" * 60)
-    print("✅ 프로세스 완료")
+    print("  process wanRyo")
     print("=" * 60)
-    print(f"소요 시간: {duration:.1f} 초")
-    print(f"수집된 항목: {len(all_items)}개")
-    print(f"선별된 항목: {len(filtered_items)}개")
-    print(f"뉴스레터 저장: {result['text_path']}")
-    print(f"아카이브 저장: {result['archive_path']}")
+    print(f"soYo siGan: {duration:.1f}s")
+    print(f"suJib: {len(all_items)}gae")
+    print(f"seonByeol: {len(filtered_items)}gae")
+    print(f"newsletter: {result['text_path']}")
+    print(f"archive: {result['archive_path']}")
 
 
 def main():

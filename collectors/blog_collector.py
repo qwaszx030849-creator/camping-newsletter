@@ -22,16 +22,86 @@ class NaverBlogCollector(BaseCollector):
         self.client_id = NAVER_CLIENT_ID
         self.client_secret = NAVER_CLIENT_SECRET
     
+    # ================================================================
+    # 운영자 관점 신호 단어 (이 단어가 많을수록 운영자에게 유용한 글)
+    # ================================================================
+    OPERATOR_SIGNALS = [
+        # 매출/수익 관련
+        "매출", "수익", "순이익", "인건비", "영업이익", "원가", "객단가",
+        "매출 상승", "매출 증가", "수익 구조",
+        # 예약/고객 관련
+        "예약률", "예약 관리", "재방문", "재방문율", "고객 만족", "고객 응대",
+        "고객 불만", "리뷰 관리", "별점", "후기 관리", "만족도",
+        # 운영 관련
+        "운영 노하우", "운영 전략", "운영 팁", "운영자", "사장님", "대표님",
+        "캠지기", "관리인", "직원 관리", "인력 관리", "체크리스트",
+        "체크인", "체크아웃", "청소", "청결", "위생", "안전 관리",
+        # 마케팅 관련
+        "마케팅", "네이버플레이스", "네이버 플레이스", "인스타그램", "블로그 마케팅",
+        "상위노출", "검색 최적화", "홍보", "온라인 마케팅", "sns 마케팅",
+        "브랜딩", "입소문", "바이럴",
+        # 시설/투자 관련
+        "시설 개선", "리모델링", "시설 투자", "사이트 조성", "데크 시공",
+        "화장실 리모델링", "샤워실", "개수대", "전기 시설", "와이파이",
+        # 사업 전략
+        "성수기 대비", "비수기 전략", "비수기 매출", "계절별 운영",
+        "이벤트 기획", "프로그램 운영", "체험 프로그램",
+        "위탁 운영", "위탁경영", "프랜차이즈",
+        # 제도/정책
+        "야영장 등록", "인허가", "지원사업", "보조금", "지원금",
+        "안전점검", "소방 점검", "위생 점검",
+        # 차별화/벤치마킹
+        "차별화", "경쟁력", "벤치마킹", "성공 사례", "성공 비결",
+    ]
+
+    # ================================================================
+    # 방문객/소비자 관점 신호 (이 단어가 많으면 운영자용이 아님)
+    # ================================================================
+    VISITOR_SIGNALS = [
+        # 여행/방문 후기
+        "다녀왔", "다녀온", "방문 후기", "솔직 후기", "여행 후기", "캠핑 후기",
+        "추천 바로가기", "바로가기", "예약 바로가기",
+        "여행지 추천", "여행 코스", "가볼만한 곳", "숨겨진 보석",
+        "벚꽃 여행", "벚꽃 캠핑", "단풍 여행", "겨울 여행",
+        "개화시기", "만개 시기", "축제 일정",
+        "데이트 코스", "가족 나들이", "아이와 함께",
+        "근처 맛집", "주변 맛집", "주변 관광지",
+        # 캠핑 용품/장비
+        "텐트 추천", "캠핑용품", "매트 추천", "침낭 추천", "캠핑 장비",
+        "전기그릴", "그릴 비교", "그릴 추천", "버너 추천",
+        "캠핑 체어", "캠핑 테이블", "타프 추천",
+        "쿨러", "아이스박스", "필수템", "캠핑 준비물",
+        # 음식/요리
+        "맛집", "먹방", "횟집", "대게", "밀키트", "냉면",
+        "레시피", "캠핑 요리", "캠핑 음식", "식당 추천",
+        "보리냉면", "삼겹살",
+        # 제품/업체 광고
+        "컨테이너 업체", "시공 업체", "설치 업체",
+        "에어컨 설치", "벽걸이 에어컨", "냉난방",
+        "카드단말기", "결제단말기", "pos기",
+        "냉동고", "냉장고", "쇼케이스", "자판기",
+        "커피머신", "렌탈", "드론촬영",
+        "세탁기", "건조기", "트램폴린",
+        # 부동산
+        "임대", "매매", "분양", "토지 매입", "부동산",
+        # 차박/노지
+        "차박", "노지 캠핑", "무료 주차",
+        # 펜션
+        "펜션 추천", "펜션 후기", "민박 추천",
+        # 일반 서적/자기계발
+        "읽고 주저리", "책 리뷰", "독서 감상", "서평",
+        # 대출/금융
+        "대출", "금리", "한도", "융자",
+        # 구인/구직
+        "알바 모집", "구인", "채용공고",
+        # 농업
+        "재배", "농장", "와사비", "작물",
+    ]
+
     def collect(self, keywords: List[str], max_items_per_keyword: int = 10) -> List[ContentItem]:
         """
         Collect blog posts from Naver Blog Search API
-        
-        Args:
-            keywords: List of search keywords
-            max_items_per_keyword: Maximum items to fetch per keyword
-            
-        Returns:
-            List of ContentItem objects
+        운영자 관점 점수제로 필터링하여 캠지기에게 유용한 글만 수집
         """
         if not self.client_id or not self.client_secret:
             self.logger.warning("Naver API credentials not configured. Skipping Naver Blog collection.")
@@ -40,42 +110,10 @@ class NaverBlogCollector(BaseCollector):
         items = []
         seen_urls = set()
         
-        # 캠핑장 관련 필수 키워드 (제목이나 내용에 하나라도 있어야 함)
+        # 캠핑장 관련 필수 키워드
         CAMPING_REQUIRED_WORDS = [
             "캠핑장", "글램핑", "야영장", "오토캠핑", "카라반",
             "캠지기", "캠핑사이트"
-        ]
-        
-        # 무관한 콘텐츠 차단 블랙리스트
-        BLACKLIST_WORDS = [
-            # 음식/맛집 (캠핑장 운영과 무관)
-            "대게", "맛집", "먹방", "횟집", "식당 추천",
-            # 부동산/임대/투자
-            "임대", "매매", "분양", "토지 매입", "부동산 투자",
-            # 농업 (와사비 등)
-            "재배", "농장", "와사비", "작물",
-            # 단순 방문 후기
-            "다녀왔어요", "방문 후기", "솔직 후기", "여행 후기",
-            # 장비/제품 판매
-            "텐트 추천", "캠핑용품 추천", "매트 추천", "침낭 추천",
-            # 차박/무료 주차
-            "차박지 추천", "무료 주차", "노지 캠핑",
-            # 펜션 (캠핑장이 아닌 순수 펜션)
-            "펜션 추천", "펜션 후기",
-            # 업체 광고/장비 판매
-            "컨테이너 업체", "대행사", "시공 업체",
-            "카드단말기", "카드기", "결제단말기", "pos기", "카드결제기",
-            "냉동고", "냉장고", "쇼케이스", "자판기",
-            "무인카페", "커피머신", "렌탈",
-            "드론촬영", "항공촬영", "영상촬영 업체",
-            "세탁기", "건조기",
-            "트램폴린", "스프링쿨러",
-            # 대출/금융
-            "대출", "금리", "한도", "융자",
-            # 설비 시공 업체  
-            "소방", "전기공사", "배관", "정화조",
-            # 구인/구직
-            "알바 모집", "구인", "채용공고",
         ]
         
         headers = {
@@ -85,14 +123,13 @@ class NaverBlogCollector(BaseCollector):
         
         for keyword in keywords:
             try:
-                # 키워드 자체만 사용 (추가 단어 없이 원본 키워드 검색)
                 search_query = keyword
                 
                 params = {
                     "query": search_query,
-                    "display": max_items_per_keyword * 5,  # 중복 제거 위해 충분히 가져옴
+                    "display": max_items_per_keyword * 5,
                     "start": 1,
-                    "sort": "date"  # 날짜순으로 매주 새로운 콘텐츠 확보
+                    "sort": "date"
                 }
                 
                 response = requests.get(self.API_URL, headers=headers, params=params, timeout=10)
@@ -112,21 +149,36 @@ class NaverBlogCollector(BaseCollector):
                     if url in seen_urls:
                         continue
                     
-                    # 🔍 캠핑장 관련 필터링: 제목이나 설명에 캠핑장 관련 단어가 있어야 함
-                    combined_text = f"{title} {description}".lower()
-                    is_camping_related = any(word in combined_text for word in CAMPING_REQUIRED_WORDS)
+                    combined_text = f"{title} {description}"
+                    combined_lower = combined_text.lower()
                     
+                    # 1단계: 캠핑장 관련 단어 필수
+                    is_camping_related = any(word in combined_lower for word in CAMPING_REQUIRED_WORDS)
                     if not is_camping_related:
-                        continue  # 캠핑장과 무관한 글 제외
+                        continue
                     
-                    # 🚫 블랙리스트 필터링: 무관한 콘텐츠 제외
-                    is_blacklisted = any(word in combined_text for word in BLACKLIST_WORDS)
-                    if is_blacklisted:
-                        continue  # 캠핑장 운영과 무관한 글 제외
+                    # 2단계: 운영자 관점 점수 계산
+                    operator_score = sum(1 for w in self.OPERATOR_SIGNALS if w in combined_lower)
+                    visitor_score = sum(1 for w in self.VISITOR_SIGNALS if w in combined_lower)
+                    
+                    # 운영자 점수가 2 미만이면 운영자에게 도움 안됨
+                    if operator_score < 2:
+                        continue
+                    
+                    # 방문객 점수가 운영자 점수보다 높으면 방문객용 콘텐츠
+                    if visitor_score > operator_score:
+                        continue
+                    
+                    # 제목에 운영자 신호가 하나도 없으면 제외
+                    title_lower = title.lower()
+                    title_has_operator_signal = any(w in title_lower for w in self.OPERATOR_SIGNALS)
+                    title_has_visitor_signal = any(w in title_lower for w in self.VISITOR_SIGNALS)
+                    if not title_has_operator_signal and title_has_visitor_signal:
+                        continue
                     
                     seen_urls.add(url)
                     
-                    # Parse date (format: YYYYMMDD)
+                    # Parse date
                     pub_date = None
                     if item.get("postdate"):
                         try:
@@ -134,24 +186,31 @@ class NaverBlogCollector(BaseCollector):
                         except ValueError:
                             pass
                     
+                    # 점수를 저장하여 나중에 정렬에 활용
+                    net_score = operator_score - visitor_score
+                    
                     content_item = ContentItem(
                         title=title,
                         url=url,
                         source="네이버 블로그",
                         description=description,
                         published_date=pub_date,
-                        category="블로그"
+                        category="블로그",
+                        score=float(net_score)
                     )
                     items.append(content_item)
                     count += 1
                 
-                self.logger.info(f"Collected {count} camping-related blog posts for keyword: {keyword}")
+                self.logger.info(f"Collected {count} operator-focused posts for: {keyword}")
                 
             except requests.RequestException as e:
                 self.logger.error(f"Error fetching Naver Blog for '{keyword}': {e}")
                 continue
         
-        self.logger.info(f"Total collected from Naver Blog: {len(items)} items")
+        # 운영자 관점 점수 높은 순으로 정렬
+        items.sort(key=lambda x: x.score, reverse=True)
+        
+        self.logger.info(f"Total collected from Naver Blog: {len(items)} operator-focused items")
         return items
 
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getNewsletterById, Newsletter } from "@/lib/newsletters";
+import { getNewsletterById, getNewsletters, Newsletter } from "@/lib/newsletters";
 import { notFound } from "next/navigation";
 import ShareButtons from "@/components/ShareButtons";
 
@@ -60,7 +60,7 @@ export default async function NewsletterDetail({ params }: PageProps) {
 }
 
 export async function generateStaticParams() {
-    // For static generation, return empty array (will use fallback)
-    return [];
+    const newsletters = await getNewsletters();
+    return newsletters.map((n) => ({ id: n.id }));
 }
 

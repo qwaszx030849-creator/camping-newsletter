@@ -33,7 +33,7 @@ export default function KakaoPage() {
                 for (let week = Math.ceil(now.getDate() / 7); week >= 1; week--) {
                     const filename = `newsletter_${year}_${String(month).padStart(2, '0')}_week${week}.json`;
                     try {
-                        const response = await fetch(`/api/newsletter/${filename}`);
+                        const response = await fetch(`/data/${filename}`);
                         if (response.ok) {
                             const data = await response.json();
                             setNewsletter(data);

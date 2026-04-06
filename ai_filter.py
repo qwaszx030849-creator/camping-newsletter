@@ -124,7 +124,7 @@ def _call_gemini(prompt: str) -> str:
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        print(f"    ⚠️ Gemini API 오류: {e}")
+        print(f"    Gemini API error: {e}")
         return ""
 
 
@@ -137,7 +137,7 @@ def _parse_json_response(response_text: str) -> list:
             json_str = response_text[json_start:json_end]
             return json.loads(json_str)
     except Exception as e:
-        print(f"    ⚠️ JSON 파싱 오류: {e}")
+        print(f"    JSON parsing error: {e}")
     return []
 
 
@@ -147,97 +147,301 @@ def _format_content_list(items: List[ContentItem]) -> str:
     for i, item in enumerate(items):
         desc = item.description[:300] if item.description else ""
         content_list += f"""
-[{i}] 제목: {item.title}
-    출처: {item.source}
-    설명: {desc}
+[{i}] title: {item.title}
+    source: {item.source}
+    desc: {desc}
 """
     return content_list
+
+
+# ============================================================================
+# 규칙 기반 점수 필터 (Gemini API 키 없을 때 사용)
+# ============================================================================
+
+# 제목/내용에서 운영자 인사이트 제공 여부를 판별하는 강한 신호
+_STRONG_POSITIVE_SIGNALS = [
+    # 매출/수익 관련 (캠핑장 사장이 직접 관심 가지는 핵심 주제)
+    "매출 올리", "매출 상승", "매출 증가", "매출 극대화",
+    "수익 구조", "수익 모델", "순이익", "영업이익",
+    "예약률 높", "예약률 상승", "예약 증가",
+    "재방문율", "재방문 높", "고객 만족도",
+    # 운영 노하우/전략
+    "운영 노하우", "운영 전략", "운영 팁", "운영 비결",
+    "성공 비결", "성공 사례", "성공한 캠핑장",
+    "위탁 운영", "위탁경영",
+    # 마케팅 실전
+    "네이버플레이스 상위", "상위노출", "마케팅 효과", "마케팅 성공",
+    "인스타 마케팅", "블로그 마케팅", "온라인 마케팅",
+    "예약 밀리", "예약 폭주",
+    # 시설 개선 효과
+    "리모델링 후", "시설 개선 후", "시설 투자 효과",
+    # 정부 지원
+    "지원사업", "보조금", "지원금 신청",
+    # 비수기/성수기 전략
+    "비수기 매출", "비수기 전략", "성수기 대비", "성수기 준비",
+]
+
+# 캠핑장 운영과 무관한 콘텐츠를 나타내는 강한 신호
+_STRONG_NEGATIVE_SIGNALS = [
+    # 방문객/여행 후기
+    "다녀왔", "다녀온", "방문 후기", "솔직 후기", "여행 후기",
+    "추천 바로가기", "바로가기", "예약 바로가기",
+    "가볼만한 곳", "숨겨진 보석", "여행지 추천", "여행 코스",
+    "벚꽃 여행", "벚꽃 캠핑", "단풍 여행", "겨울 여행",
+    "개화시기", "만개 시기", "축제 일정",
+    "데이트 코스", "가족 나들이", "아이와 함께",
+    "근처 맛집", "주변 맛집", "주변 관광지",
+    "완벽 가이드", "여행 가이드",
+    # 캠핑 용품/장비
+    "전기그릴", "그릴 비교", "그릴 추천", "버너 추천",
+    "텐트 추천", "캠핑용품 추천", "매트 추천", "침낭 추천",
+    "캠핑 체어", "캠핑 테이블", "타프 추천",
+    "쿨러 추천", "아이스박스", "필수템", "캠핑 준비물",
+    # 음식/밀키트/요리
+    "밀키트", "냉면", "보리냉면", "맛집", "먹방",
+    "레시피", "캠핑 요리", "캠핑 음식",
+    "고기 파티", "삼겹살 추천",
+    # 설비/업체 광고
+    "에어컨 설치", "벽걸이 에어컨", "냉난방 설치",
+    "컨테이너 업체", "시공 업체", "설치 업체",
+    "문의하세요", "상담 문의", "무료 상담", "견적 문의",
+    "반도에너지", "지금 바로 문의",
+    # 일반 서적/자기계발
+    "읽고 주저리", "책 리뷰", "독서 감상", "서평",
+    "판매합니다", "물어보다",
+    "마이너스였던 인생", "플러스로 바뀐", "수익파이프라인",
+    "자기계발", "드림투유", "네트워크 마케팅",
+    # 부동산/금융/매물
+    "임대", "매매", "분양", "대출", "금리",
+    "토지 면적", "건축 면적", "매각", "부지 매물",
+    "레저시설 부지", "관광농원 매매", "수익형 부동산",
+    # 엔터테인먼트/연예/낚시성 제목
+    "런닝맨", "나는 솔로", "유재석", "유퀴즈",
+    "진실은?", "충격 고백", "논란",
+    # 일반 무인판매기/자판기 창업 (캠핑장 직접 운영이 아닌 일반 창업)
+    "무인판매기 창업", "자판기 창업", "무인 창업",
+    # 일반 숙박업 광고 (모텔·호텔 나열형)
+    "모텔, 호텔", "호텔, 리조트, 펜션",
+    # 할로윈/개인 행사 후기
+    "할로윈데이캠핑", "할로윈캠핑",
+    # 캠핑장 추천/명소 추천 (방문객 대상 콘텐츠, 운영자 인사이트 X)
+    "TOP 5 추천", "TOP 3 추천", "TOP 10 추천", "명소 추천",
+    "어디로 갈까", "힐링 명소", "프라이빗한 힐링",
+    "캠핑장 추천 베스트", "글램핑장 추천 순위",
+    # 부동산 투자/매수 관점 (기존 운영자가 아닌 투자자 대상)
+    "급매 물건", "매수 전략", "저가 매수", "침체기 매수",
+    "캠핑장 급매", "글램핑장 급매", "캠핑장 인수",
+    # 카라반/중고 차량 거래업체 광고
+    "중고 카라반", "카라반 거래", "카라반 잭 사용",
+    "카라반 매매", "수천 대의 카라반",
+    # 마케팅 대행사/블로그 대행 광고
+    "블로그 광고 브랜드", "블로그 광고 대행",
+    "마케팅 대행사", "광고 대행",
+    "효과 리포트 제공", "차별화된 콘텐츠",
+    # 특정 업체 제품 홍보/ODM 업체
+    "ODM MON모델", "ODM STAY", "자부심 뿜뿜",
+]
+
+
+def _rule_based_score(item: ContentItem) -> float:
+    """
+    규칙 기반 콘텐츠 점수 (Gemini 없을 때 사용)
+    높을수록 운영자에게 유용한 콘텐츠
+    """
+    text = f"{item.title} {item.description}".lower()
+    title = item.title.lower()
+    
+    score = 0.0
+    
+    # 강한 긍정 신호 (제목에 있으면 +3, 본문에 있으면 +1.5)
+    for signal in _STRONG_POSITIVE_SIGNALS:
+        if signal in title:
+            score += 3.0
+        elif signal in text:
+            score += 1.5
+    
+    # 강한 부정 신호 (제목에 있으면 -5, 본문에 있으면 -2)
+    for signal in _STRONG_NEGATIVE_SIGNALS:
+        if signal in title:
+            score -= 5.0
+        elif signal in text:
+            score -= 2.0
+    
+    # 보너스: "사장님", "대표님", "운영자", "캠지기" 언급 → 운영자 대상 글
+    owner_words = ["사장님", "대표님", "운영자", "캠지기", "관리인"]
+    for w in owner_words:
+        if w in text:
+            score += 2.0
+    
+    # 페널티: 제목이 특정 지역 + 여행/캠핑장 추천 패턴
+    import re
+    if re.search(r'(벚꽃|단풍|여행|축제).*(캠핑장|글램핑).*(추천|바로가기)', title):
+        score -= 10.0
+    if re.search(r'(캠핑장|글램핑).*(추천|후기).*(바로가기)', title):
+        score -= 10.0
+    
+    return score
 
 
 def step2_md_filter(items: List[ContentItem], target_count: int = 20) -> List[ContentItem]:
     """
     2단계: MD 관점 필터링
-    - 캠핑장 운영에 도움이 되는 콘텐츠 선별
-    - 지역 한정 정부지원은 최소화
+    - Gemini API 있으면 AI 필터링
+    - 없으면 규칙 기반 점수제로 필터링
     """
-    print(f"\n🎯 [2단계] MD 관점 필터링 ({len(items)}개 → {target_count}개)")
-    
-    if not GEMINI_API_KEY:
-        print("    ⚠️ Gemini API 키 없음. 첫 항목들 반환")
-        return items[:target_count]
+    print(f"\n  [step2] MD gwanJeom filtering ({len(items)} -> {target_count})")
     
     if len(items) <= target_count:
         return items
     
-    content_list = _format_content_list(items)
-    prompt = MD_FILTER_PROMPT.format(content_list=content_list, count=target_count)
+    if GEMINI_API_KEY:
+        content_list = _format_content_list(items)
+        prompt = MD_FILTER_PROMPT.format(content_list=content_list, count=target_count)
+        
+        response = _call_gemini(prompt)
+        selections = _parse_json_response(response)
+        
+        if selections:
+            result = []
+            for sel in selections:
+                idx = sel.get("index", -1)
+                if 0 <= idx < len(items):
+                    item = items[idx]
+                    item.category = sel.get("type", "gi-ta")
+                    result.append(item)
+            
+            print(f"    AI seonByeol: {len(result)}gae")
+            return result[:target_count]
     
-    response = _call_gemini(prompt)
-    selections = _parse_json_response(response)
+    # Gemini 없거나 실패 시: 규칙 기반 점수 필터링
+    print("    gyuChik giBan jeomSu filtering...")
+    scored = [(item, _rule_based_score(item)) for item in items]
+    scored.sort(key=lambda x: x[1], reverse=True)
     
-    if not selections:
-        print("    ⚠️ AI 응답 파싱 실패. 첫 항목들 반환")
-        return items[:target_count]
+    # 점수 0 이하인 것은 가능하면 제외
+    result = [item for item, sc in scored if sc > 0][:target_count]
     
-    result = []
-    for sel in selections:
-        idx = sel.get("index", -1)
-        if 0 <= idx < len(items):
-            item = items[idx]
-            item.category = sel.get("type", "기타")
-            result.append(item)
+    # 부족하면 점수 높은 순으로 채움
+    if len(result) < target_count:
+        existing_urls = {item.url for item in result}
+        for item, sc in scored:
+            if item.url not in existing_urls:
+                result.append(item)
+                if len(result) >= target_count:
+                    break
     
-    print(f"    ✅ MD 선별 완료: {len(result)}개")
-    
-    # 선별 결과 요약
-    categories = {}
-    for item in result:
-        cat = item.category
-        categories[cat] = categories.get(cat, 0) + 1
-    print(f"    📊 유형별: {categories}")
-    
+    print(f"    gyuChik giban seonByeol: {len(result)}gae (score > 0: {sum(1 for _, s in scored if s > 0)}gae)")
     return result[:target_count]
+
+
+def _remove_duplicate_topics(items: List[ContentItem]) -> List[ContentItem]:
+    """
+    유사한 주제의 기사가 여러 개일 때 가장 점수 높은 1개만 유지
+    예: 무인자판기 관련 글 3개 → 상위 1개만
+    """
+    import re
+    
+    # 주제 클러스터 키워드 (같은 그룹으로 묶을 키워드들)
+    topic_clusters = [
+        ["무인 자판기", "무인자판기", "키오스크 수익", "자판기 운영", "자판기 도입"],
+        ["네이버플레이스", "네이버 플레이스", "상위노출"],
+        ["인허가", "사업계획 승인", "등록 절차"],
+        ["리모델링", "시설 개선", "시설 투자"],
+    ]
+    
+    cluster_best = {}  # cluster_id -> (item, score)
+    non_clustered = []
+    
+    for item in items:
+        text = f"{item.title} {item.description}".lower()
+        score = _rule_based_score(item)
+        matched_cluster = None
+        
+        for cid, keywords in enumerate(topic_clusters):
+            if any(kw in text for kw in keywords):
+                matched_cluster = cid
+                break
+        
+        if matched_cluster is not None:
+            if matched_cluster not in cluster_best or score > cluster_best[matched_cluster][1]:
+                cluster_best[matched_cluster] = (item, score)
+        else:
+            non_clustered.append(item)
+    
+    result = [entry[0] for entry in cluster_best.values()] + non_clustered
+    removed = len(items) - len(result)
+    if removed > 0:
+        print(f"    🔄 유사 주제 중복 {removed}개 제거")
+    return result
 
 
 def step3_owner_filter(items: List[ContentItem], target_count: int = 10) -> List[ContentItem]:
     """
     3단계: 캠지기(운영자) 관점 실용성 필터링
-    - 실제 적용 가능한 콘텐츠만 최종 선별
+    - Gemini API 있으면 AI 필터링
+    - 없으면 규칙 기반 점수제로 2차 필터링
+    - 아이템 수가 target_count 이하라도 score <= 0인 노이즈는 제거
     """
-    print(f"\n🏕️ [3단계] 캠지기 실용성 필터링 ({len(items)}개 → {target_count}개)")
+    print(f"\n  [step3] camJiGi silYongSeong filtering ({len(items)} -> {target_count})")
     
-    if not GEMINI_API_KEY:
-        print("    ⚠️ Gemini API 키 없음. 첫 항목들 반환")
-        return items[:target_count]
+    # 유사 주제 중복 제거
+    items = _remove_duplicate_topics(items)
     
-    if len(items) <= target_count:
-        return items
+    # 아이템 수가 target_count 이하라도, 노이즈(score <= 0)는 반드시 제거
+    scored = [(item, _rule_based_score(item)) for item in items]
+    clean_items = [item for item, sc in scored if sc > 0]
+    removed_noise = len(items) - len(clean_items)
+    if removed_noise > 0:
+        print(f"    🗑️ 품질 미달(score≤0) {removed_noise}개 제거")
+    items = clean_items if clean_items else items  # 전부 제거되면 원본 유지
     
-    content_list = _format_content_list(items)
-    prompt = CAMPGROUND_OWNER_FILTER_PROMPT.format(content_list=content_list, count=target_count)
+    if GEMINI_API_KEY:
+        content_list = _format_content_list(items)
+        prompt = CAMPGROUND_OWNER_FILTER_PROMPT.format(content_list=content_list, count=target_count)
+        
+        response = _call_gemini(prompt)
+        selections = _parse_json_response(response)
+        
+        if selections:
+            result = []
+            for sel in selections:
+                idx = sel.get("index", -1)
+                if 0 <= idx < len(items):
+                    item = items[idx]
+                    item.category = sel.get("category", item.category)
+                    item.score = sel.get("priority", 3)
+                    result.append(item)
+            
+            result.sort(key=lambda x: x.score if x.score else 3)
+            print(f"    AI choejong seonByeol: {len(result)}gae")
+            return result[:target_count]
     
-    response = _call_gemini(prompt)
-    selections = _parse_json_response(response)
-    
-    if not selections:
-        print("    ⚠️ AI 응답 파싱 실패. 첫 항목들 반환")
-        return items[:target_count]
+    # Gemini 없거나 실패 시: 규칙 기반 2차 필터링
+    print("    gyuChik giban 2cha filtering...")
+    scored = [(item, _rule_based_score(item)) for item in items]
+    scored.sort(key=lambda x: x[1], reverse=True)
     
     result = []
-    for sel in selections:
-        idx = sel.get("index", -1)
-        if 0 <= idx < len(items):
-            item = items[idx]
-            item.category = sel.get("category", item.category)
-            item.score = sel.get("priority", 3)
-            result.append(item)
+    for item, sc in scored[:target_count]:
+        # 카테고리 자동 분류
+        text = f"{item.title} {item.description}".lower()
+        if any(w in text for w in ["매출", "수익", "예약률", "재방문"]):
+            item.category = "maeChul/seongGong"
+        elif any(w in text for w in ["마케팅", "인스타", "플레이스", "상위노출", "블로그"]):
+            item.category = "marketing"
+        elif any(w in text for w in ["지원사업", "보조금", "지원금", "인허가"]):
+            item.category = "jeongBuJiWon"
+        elif any(w in text for w in ["시설", "리모델링", "화장실", "사이트 조성"]):
+            item.category = "siSeolGaeSeon"
+        elif any(w in text for w in ["트렌드", "동향", "시장", "통계"]):
+            item.category = "trend"
+        else:
+            item.category = "unYeongNoHaWoo"
+        item.score = sc
+        result.append(item)
     
-    # 우선순위로 정렬 (낮은 숫자가 높은 우선순위)
-    result.sort(key=lambda x: x.score if x.score else 3)
-    
-    print(f"    ✅ 최종 선별 완료: {len(result)}개")
-    
-    return result[:target_count]
+    print(f"    choejong seonByeol: {len(result)}gae")
+    return result
 
 
 def filter_content_3step(
@@ -245,24 +449,17 @@ def filter_content_3step(
     final_count: int = NEWSLETTER_ITEMS_COUNT
 ) -> List[ContentItem]:
     """
-    3단계 AI 필터링 파이프라인
+    3단계 필터링 파이프라인 (AI 또는 규칙 기반)
     
     1단계: 수집 (이미 완료, items로 전달됨)
     2단계: MD 관점 필터링 (운영에 도움되는 콘텐츠)
     3단계: 캠지기 관점 필터링 (실용적, 적용 가능한 콘텐츠)
-    4단계: 강제 비율 조정 (마케팅/정부지원 50% 이하)
-    
-    Args:
-        items: 1단계에서 수집된 모든 콘텐츠
-        final_count: 최종 선별할 개수 (기본 10개)
-    
-    Returns:
-        최종 선별된 실용적인 콘텐츠 리스트
     """
     print("\n" + "=" * 60)
-    print("🔄 3단계 AI 필터링 시작")
+    mode = "AI (Gemini)" if GEMINI_API_KEY else "gyuChik giban jeomSuje"
+    print(f"  3danGye filtering siJak [{mode}]")
     print("=" * 60)
-    print(f"📥 입력: {len(items)}개 콘텐츠")
+    print(f"  ipRyeok: {len(items)}gae contents")
     
     if not items:
         return []
@@ -274,92 +471,17 @@ def filter_content_3step(
     md_filtered = step2_md_filter(items, target_count=step2_count)
     
     # 3단계: 캠지기 관점 실용성 필터링
-    after_step3 = step3_owner_filter(md_filtered, target_count=final_count + 5)  # 여유분 확보
-    
-    # 4단계: 강제 비율 조정 (코드로 강제 적용)
-    final_result = _balance_content_types(after_step3, items, final_count)
+    final_result = step3_owner_filter(md_filtered, target_count=final_count)
     
     print("\n" + "-" * 60)
-    print(f"📤 최종 결과: {len(final_result)}개 선별")
+    print(f"  choejong gyeolGwa: {len(final_result)}gae seonByeol")
     print("-" * 60)
     
     for i, item in enumerate(final_result, 1):
-        priority = "⭐" * (4 - (item.score or 3))
-        print(f"   {i}. [{item.category}] {priority} {item.title[:40]}...")
+        sc = f"(score:{item.score:.1f})" if item.score else ""
+        print(f"   {i}. [{item.category}] {sc} {item.title[:50]}...")
     
     return final_result
-
-
-def _balance_content_types(filtered: List[ContentItem], all_items: List[ContentItem], target_count: int) -> List[ContentItem]:
-    """
-    콘텐츠 유형별 강제 비율 조정
-    - 마케팅(인스타/플레이스): 최대 4개 (40%)
-    - 정부지원: 최대 3개 (30%)
-    - 나머지(뉴스/블로그/카페): 최소 3개 (30%)
-    """
-    print("\n⚖️ [4단계] 콘텐츠 비율 조정...")
-    
-    # 유형별 분류
-    marketing = []
-    gov_support = []
-    others = []
-    
-    for item in filtered:
-        cat = (item.category or "").lower()
-        if "마케팅" in cat or "인스타" in cat or "플레이스" in cat or "sns" in cat:
-            marketing.append(item)
-        elif "정부" in cat or "지원" in cat:
-            gov_support.append(item)
-        else:
-            others.append(item)
-    
-    # 비율 적용 (마케팅 4개, 정부지원 3개, 나머지 3개)
-    max_marketing = 4
-    max_gov = 3
-    min_others = target_count - max_marketing - max_gov
-    
-    result = []
-    
-    # 마케팅 추가 (최대 4개)
-    result.extend(marketing[:max_marketing])
-    
-    # 정부지원 추가 (최대 3개)
-    result.extend(gov_support[:max_gov])
-    
-    # 나머지 추가
-    result.extend(others[:min_others])
-    
-    # 부족하면 원본에서 추가
-    if len(result) < target_count:
-        remaining = target_count - len(result)
-        # 기존 URL 제외하고 추가
-        existing_urls = {item.url for item in result}
-        for item in all_items:
-            if item.url not in existing_urls:
-                cat = (item.category or "").lower()
-                # 마케팅/정부지원이 아닌 것 우선
-                if "마케팅" not in cat and "정부" not in cat and "지원" not in cat:
-                    result.append(item)
-                    if len(result) >= target_count:
-                        break
-    
-    # 그래도 부족하면 아무거나 추가
-    if len(result) < target_count:
-        existing_urls = {item.url for item in result}
-        for item in filtered:
-            if item.url not in existing_urls:
-                result.append(item)
-                if len(result) >= target_count:
-                    break
-    
-    # 결과 요약
-    categories = {}
-    for item in result:
-        cat = item.category or "기타"
-        categories[cat] = categories.get(cat, 0) + 1
-    print(f"   📊 최종 유형별: {categories}")
-    
-    return result[:target_count]
 
 
 # 기존 filter_content 함수와의 호환성 유지

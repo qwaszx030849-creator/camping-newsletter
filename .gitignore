@@ -20,3 +20,7 @@ venv/
 # Node modules (dashboard)
 node_modules/
 .next/
+out/
+
+# Run logs
+run_output*.txt

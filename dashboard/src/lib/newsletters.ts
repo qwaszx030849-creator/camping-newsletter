@@ -27,8 +27,8 @@ export interface Newsletter {
     items_count: number;
 }
 
-// Path to archive directory (relative to dashboard)
-const ARCHIVE_DIR = path.join(process.cwd(), "..", "archive");
+// Path to archive directory (inside dashboard)
+const ARCHIVE_DIR = path.join(process.cwd(), "data", "archive");
 
 export async function getNewsletters(): Promise<Newsletter[]> {
     const newsletters: Newsletter[] = [];

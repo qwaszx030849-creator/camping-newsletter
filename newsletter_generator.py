@@ -9,6 +9,11 @@ import json
 from collectors.base import ContentItem
 from config import NEWSLETTER_TITLE_PREFIX, OUTPUT_DIR, ARCHIVE_DIR
 
+# Dashboard data directories
+DASHBOARD_DIR = os.path.join(os.path.dirname(__file__), "dashboard")
+DASHBOARD_ARCHIVE_DIR = os.path.join(DASHBOARD_DIR, "data", "archive")
+DASHBOARD_PUBLIC_DATA_DIR = os.path.join(DASHBOARD_DIR, "public", "data")
+
 
 def get_week_info(date: datetime = None) -> dict:
     """Get year, month, and week number for the given date"""
@@ -136,6 +141,14 @@ def save_newsletter(items: List[ContentItem], week_info: dict = None) -> dict:
     archive_month_dir = os.path.join(archive_year_dir, f"{week_info['month']:02d}")
     os.makedirs(archive_month_dir, exist_ok=True)
     archive_json_path = os.path.join(archive_month_dir, f"{base_filename}.json")
+
+    # Dashboard data paths
+    dash_archive_year = os.path.join(DASHBOARD_ARCHIVE_DIR, str(week_info['year']))
+    dash_archive_month = os.path.join(dash_archive_year, f"{week_info['month']:02d}")
+    os.makedirs(dash_archive_month, exist_ok=True)
+    os.makedirs(DASHBOARD_PUBLIC_DATA_DIR, exist_ok=True)
+    dash_archive_json_path = os.path.join(dash_archive_month, f"{base_filename}.json")
+    dash_public_json_path = os.path.join(DASHBOARD_PUBLIC_DATA_DIR, f"{base_filename}.json")
     
     # Generate content
     text_content = generate_newsletter_text(items, week_info)
@@ -150,11 +163,19 @@ def save_newsletter(items: List[ContentItem], week_info: dict = None) -> dict:
     
     with open(archive_json_path, 'w', encoding='utf-8') as f:
         json.dump(json_content, f, ensure_ascii=False, indent=2)
-    
+
+    # Save to dashboard data directories
+    with open(dash_archive_json_path, 'w', encoding='utf-8') as f:
+        json.dump(json_content, f, ensure_ascii=False, indent=2)
+
+    with open(dash_public_json_path, 'w', encoding='utf-8') as f:
+        json.dump(json_content, f, ensure_ascii=False, indent=2)
+
     print(f"Newsletter saved:")
     print(f"  Text: {text_path}")
     print(f"  JSON: {json_path}")
     print(f"  Archive: {archive_json_path}")
+    print(f"  Dashboard: {dash_archive_json_path}")
     
     return {
         "text_path": text_path,
