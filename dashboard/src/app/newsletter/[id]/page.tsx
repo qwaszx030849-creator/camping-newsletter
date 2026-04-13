@@ -39,9 +39,11 @@ export default async function NewsletterDetail({ params }: PageProps) {
                                 {item.category || "기타"}
                             </span>
                             <h3 className="item-title">{item.title}</h3>
-                            {item.description && (
+                            {(item as any).summary ? (
+                                <p className="item-description" style={{fontWeight: 500, lineHeight: 1.7}}>{(item as any).summary}</p>
+                            ) : item.description ? (
                                 <p className="item-description">{item.description}</p>
-                            )}
+                            ) : null}
                             <p className="item-source">출처: {item.source}</p>
                             <a
                                 href={item.url}

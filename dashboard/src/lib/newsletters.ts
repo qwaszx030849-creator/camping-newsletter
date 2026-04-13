@@ -6,6 +6,7 @@ export interface NewsletterItem {
     url: string;
     source: string;
     description?: string;
+    summary?: string;
     published_date?: string;
     category: string;
     score?: number;
