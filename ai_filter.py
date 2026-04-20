@@ -179,6 +179,19 @@ _HARD_REJECT_TITLE = [
     "소액수익형", "수익형 부동산", "투자 가이드",
     # 6차 산업/농업
     "6차 산업", "관광농원", "농막",
+    # 음식/식자재/주점 (캠핑장과 무관)
+    "모찌", "도후", "이자카야", "주점", "식자재",
+    "마켓오지", "감성주점", "포차", "안주",
+    # 소비자용 가이드/안내
+    "초보 가이드", "캠핑 초보", "이용 안내", "예약 및 이용",
+    "장비 체크리스트", "캠핑 가이드 총정리",
+    # 사이트 번호 후기 (방문 후기 패턴)
+    "사이트 1번", "사이트 2번", "사이트 3번", "사이트 4번", "사이트 5번",
+    "사이트 6번", "사이트 7번", "사이트 8번", "사이트 9번", "사이트 10번",
+    # 질문글
+    "배우고 싶어요", "알려주세요", "조언 부탁",
+    # 추천/소개 후기 패턴
+    "캠핏 추천", "캠핑장 추천 후기", "방갈로까지", "수영장 카라반",
 ]
 
 # 본문에 있으면 감점 (soft penalty)
@@ -329,6 +342,23 @@ def _is_hard_rejected(item: ContentItem) -> bool:
             first_pension = min((title.find(w) for w in pension_cafe_words if w in title), default=999)
             first_camping = min((title.find(w) for w in camping_words_check if w in title), default=999)
             if first_pension < first_camping:
+                return True
+
+    # 블로그: 캠핑장 단어가 제목에 없으면 운영자용일 가능성 매우 낮음
+    if item.source == "네이버 블로그":
+        camp_words_strict = ["캠핑장", "오토캠핑", "야영장", "글램핑장", "캠지기", "캠핑카"]
+        if not any(w in title for w in camp_words_strict):
+            return True
+
+    # 블로그: 방문 후기 패턴 (오토캠핑장 후기, ~ 후기 등 - 운영자가 아닌 소비자 후기)
+    if item.source == "네이버 블로그":
+        visitor_review_patterns = [
+            "캠핑장 후기", "오토캠핑장 후기", "글램핑장 후기", "야영장 후기",
+            "다녀온 ", "다녀왔", "방문 후기", "1박 2일", "1박2일",
+            "이용 후기", "체험 후기",
+        ]
+        for p in visitor_review_patterns:
+            if p in title:
                 return True
 
     return False
