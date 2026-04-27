@@ -17,16 +17,18 @@ class ContentItem:
     url: str
     source: str
     description: str = ""
+    summary: str = ""  # AI-generated summary
     published_date: Optional[datetime] = None
     category: str = ""
     score: float = 0.0  # AI relevance score
-    
+
     def to_dict(self) -> dict:
         return {
             "title": self.title,
             "url": self.url,
             "source": self.source,
             "description": self.description,
+            "summary": self.summary,
             "published_date": self.published_date.isoformat() if self.published_date else None,
             "category": self.category,
             "score": self.score

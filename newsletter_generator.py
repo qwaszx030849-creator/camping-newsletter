@@ -67,14 +67,13 @@ def generate_newsletter_text(items: List[ContentItem], week_info: dict = None) -
     for i, item in enumerate(items, 1):
         lines.append(f"📌 {i}. {item.title}")
         lines.append("")
-        
-        if item.description:
-            short_desc = item.description[:50]
-            if len(item.description) > 50:
-                short_desc += "..."
-            lines.append(f"💬 {short_desc}")
+
+        # AI 요약이 있으면 요약, 없으면 description
+        display_text = item.summary if item.summary else item.description
+        if display_text:
+            lines.append(f"💬 {display_text}")
             lines.append("")
-        
+
         lines.append(f"🔗 {item.url}")
         lines.append("")
         lines.append("ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ")
