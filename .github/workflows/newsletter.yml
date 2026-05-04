@@ -2,9 +2,18 @@ name: Weekly Newsletter
 
 on:
   schedule:
-    # 매주 월요일 오전 9시 (KST) = UTC 00:00
+    # 매주 월요일 오전 9시 KST (UTC 00:00) - 주 발급
     - cron: '0 0 * * 1'
+    # 백업: 월요일 오전 11시 KST (UTC 02:00) - 첫 시도가 누락될 경우 대비
+    - cron: '0 2 * * 1'
+    # 백업: 월요일 오후 3시 KST (UTC 06:00)
+    - cron: '0 6 * * 1'
   workflow_dispatch:  # 수동 실행도 가능
+
+# 동일 주차 중복 실행 방지
+concurrency:
+  group: weekly-newsletter
+  cancel-in-progress: false
 
 jobs:
   generate-newsletter:
