@@ -37,6 +37,9 @@ jobs:
       
       - name: Run newsletter pipeline
         env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_PRIMARY_MODEL: ${{ vars.CLAUDE_PRIMARY_MODEL || 'claude-sonnet-4-6' }}
+          CLAUDE_FALLBACK_MODEL: ${{ vars.CLAUDE_FALLBACK_MODEL || 'claude-haiku-4-5-20251001' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
           NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}

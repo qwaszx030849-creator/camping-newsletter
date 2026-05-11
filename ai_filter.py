@@ -3,7 +3,13 @@ AI 필터링 + 요약 시스템 (Claude API)
 =====================================
 Step 1: 수집된 콘텐츠에서 캠핑장 운영자에게 유용한 콘텐츠 선별
 Step 2: 선별된 콘텐츠에 핵심 요약 생성
+
+모델 선택 전략:
+- 1순위: Sonnet 4.6 (높은 정확도, 주당 약 110원)
+- 2순위: Haiku 4.5 (크레딧/쿼터 부족 시 자동 폴백, 주당 약 30원)
+- 3순위: 규칙 기반 (API 키 없거나 모든 모델 실패 시)
 """
+import os
 import anthropic
 import json
 from typing import List
@@ -11,14 +17,34 @@ from collectors.base import ContentItem
 from config import ANTHROPIC_API_KEY, NEWSLETTER_ITEMS_COUNT
 
 
+# 모델 우선순위 (환경변수로 오버라이드 가능)
+PRIMARY_MODEL = os.getenv("CLAUDE_PRIMARY_MODEL", "claude-sonnet-4-6")
+FALLBACK_MODEL = os.getenv("CLAUDE_FALLBACK_MODEL", "claude-haiku-4-5-20251001")
+
 # Claude API 클라이언트
 _client = None
+# 폴백 상태 메모이제이션 (한 번 폴백되면 같은 실행 동안 재시도 안 함)
+_disabled_models: set = set()
+
 
 def _get_client():
     global _client
     if _client is None and ANTHROPIC_API_KEY:
         _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     return _client
+
+
+def _is_quota_or_credit_error(err: Exception) -> bool:
+    """크레딧/쿼터 부족 또는 모델 비활성 관련 에러인지 판단."""
+    msg = str(err).lower()
+    quota_signals = (
+        "credit", "quota", "insufficient", "billing",
+        "balance", "exceeded", "permission_error",
+    )
+    if any(sig in msg for sig in quota_signals):
+        return True
+    status = getattr(err, "status_code", None)
+    return status in (402, 403, 429)
 
 
 # ============================================================================
@@ -89,20 +115,38 @@ JSON 배열로만 응답하세요.
 
 
 def _call_claude(prompt: str) -> str:
-    """Claude API 호출"""
+    """Claude API 호출 (Sonnet → Haiku 자동 폴백)"""
     client = _get_client()
     if not client:
         return ""
-    try:
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=2000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.content[0].text
-    except Exception as e:
-        print(f"    Claude API error: {e}")
+
+    models_to_try = [m for m in (PRIMARY_MODEL, FALLBACK_MODEL) if m not in _disabled_models]
+    if not models_to_try:
         return ""
+
+    for model in models_to_try:
+        try:
+            response = client.messages.create(
+                model=model,
+                max_tokens=2000,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            usage = getattr(response, "usage", None)
+            if usage:
+                print(f"    ✓ {model} 사용 (in={usage.input_tokens}, out={usage.output_tokens})")
+            else:
+                print(f"    ✓ {model} 사용")
+            return response.content[0].text
+        except Exception as e:
+            if _is_quota_or_credit_error(e):
+                print(f"    ⚠ {model} 사용 불가 (크레딧/쿼터): {e}")
+                _disabled_models.add(model)
+                continue  # 다음 모델 시도
+            print(f"    ✗ {model} 오류: {e}")
+            return ""  # 일시적 네트워크 오류 등 → 규칙 기반 폴백
+
+    print("    ⚠ 모든 Claude 모델 사용 불가 → 규칙 기반 필터로 폴백")
+    return ""
 
 
 def _parse_json_response(response_text: str) -> list:
@@ -514,7 +558,10 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
     """
     print("\n" + "=" * 60)
     has_api = bool(ANTHROPIC_API_KEY)
-    mode = "Claude AI (haiku)" if has_api else "규칙 기반"
+    if has_api:
+        mode = f"Claude AI (1순위: {PRIMARY_MODEL} / 2순위: {FALLBACK_MODEL})"
+    else:
+        mode = "규칙 기반 (API 키 없음)"
     print(f"  필터링 시작 [{mode}] ({len(items)}개 → {count}개)")
     print("=" * 60)
 
