@@ -55,9 +55,33 @@ jobs:
           retention-days: 90
       
       - name: Commit and push changes
+        id: commit
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add output/ archive/ dashboard/public/data/ dashboard/data/archive/
-          git diff --staged --quiet || git commit -m "📰 Weekly newsletter $(date +'%Y-%m-%d')"
-          git push
+          if git diff --staged --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No new newsletter content to commit; skipping push."
+          else
+            git commit -m "📰 Weekly newsletter $(date +'%Y-%m-%d')"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger Vercel rebuild
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$VERCEL_DEPLOY_HOOK" ]; then
+            echo "::warning::VERCEL_DEPLOY_HOOK secret not set — dashboard will not auto-rebuild. Add it under Repo Settings → Secrets → Actions."
+            exit 0
+          fi
+          http_code=$(curl -sS -o /tmp/vercel_resp.json -w "%{http_code}" -X POST "$VERCEL_DEPLOY_HOOK")
+          echo "Vercel hook responded with HTTP $http_code"
+          cat /tmp/vercel_resp.json || true
+          if [ "$http_code" -ge 400 ]; then
+            echo "::error::Vercel deploy hook returned $http_code"
+            exit 1
+          fi
