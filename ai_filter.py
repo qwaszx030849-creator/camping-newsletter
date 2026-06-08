@@ -65,10 +65,14 @@ FILTER_PROMPT = """당신은 캠핑장 담당 MD입니다. 캠핑장 사장님(�
 
 ### 반드시 제외할 콘텐츠
 - 단순 캠핑장 방문 후기, 여행 코스 추천
+- 캠핑장 할인 받는 법, 예약 할인 팁, 쿠폰/프로모션 안내
 - 캠핑 용품/장비 리뷰 (텐트, 침낭 등)
+- 캠핑카/차박/1톤 트럭/캠핑카 정비업/차량 구매 콘텐츠
 - 부동산 매매/임대/분양/경매
+- 캠핑장 창업 일반론, 창업비용, 창업자금, 프랜차이즈 홍보
 - 맛집, 음식, 밀키트
 - 업체 광고/홍보 (시공업체, 마케팅대행사, CCTV업체, 난로업체 등)
+- 특정 브랜드/제품 홍보글 (예: 프롬비 빅팬, 에어바운스 해외직구, 산으로간니모 등)
 - 차박/노지 캠핑
 - 알바/구인 정보
 - 일반 자기계발/경영 일반론
@@ -151,13 +155,15 @@ def _call_claude(prompt: str) -> str:
 
 def _parse_json_response(response_text: str) -> list:
     """JSON 응답 파싱"""
-    try:
-        json_start = response_text.find('[')
-        json_end = response_text.rfind(']') + 1
-        if json_start != -1 and json_end > json_start:
-            return json.loads(response_text[json_start:json_end])
-    except Exception as e:
-        print(f"    JSON parsing error: {e}")
+    decoder = json.JSONDecoder()
+    for match in re.finditer(r'\[', response_text):
+        try:
+            parsed, _ = decoder.raw_decode(response_text[match.start():])
+            if isinstance(parsed, list):
+                return parsed
+        except json.JSONDecodeError:
+            continue
+    print("    JSON parsing error: valid JSON array not found")
     return []
 
 
@@ -184,6 +190,7 @@ _HARD_REJECT_TITLE = [
     # 부동산/매물/경매
     "매매", "분양", "임대", "경매", "급매", "매물", "매각", "부지",
     "토지", "건축 면적", "객실,", "할인 모텔", "숙박시설 허가",
+    "양도", "매입 운영",
     "풀빌라", "리조트 캠핑장",
     # 펜션/카페/민박 위주 콘텐츠
     "펜션 매출", "카페 펜션", "카페 매출", "펜션 운영", "펜션 수익",
@@ -206,9 +213,17 @@ _HARD_REJECT_TITLE = [
     "다녀왔", "다녀온", "방문 후기", "여행 후기", "여행 코스",
     "바로가기", "가볼만한 곳", "숨겨진 보석", "벚꽃", "단풍",
     "데이트 코스", "아이와 함께", "TOP 5", "TOP 10", "TOP 3",
+    "할인 받는 팁", "할인받는 팁", "할인 받는법", "할인받는법",
+    "할인 쿠폰", "할인 받기", "할인받기", "예약 숙소", "물놀이 명당",
+    "행사 예고", "참가자발표", "참가자 발표", "정기 캠핑", "정캠",
+    "뉴스레터",
     # 캠핑 용품/장비
     "텐트 추천", "캠핑용품", "매트 추천", "침낭 추천", "그릴 추천",
-    "필수템", "캠핑 준비물",
+    "필수템", "캠핑 준비물", "프롬비", "빅팬", "선풍기", "서큘레이터",
+    "에어바운스", "해외직구",
+    # 캠핑카/차량
+    "캠핑카", "1톤", "캠핑트레일러", "캠핑카정비업", "캠핑카 정비",
+    "중고 캠핑카", "루프탑", "차량용품",
     # 음식
     "맛집", "먹방", "밀키트", "냉면", "레시피",
     # 차박/노지
@@ -221,6 +236,10 @@ _HARD_REJECT_TITLE = [
     "마케팅 대행", "광고 대행", "블로그 광고", "효과 리포트",
     # 일반 창업/투자
     "소액수익형", "수익형 부동산", "투자 가이드",
+    "캠핑장 창업", "창업 비용", "창업비용", "창업자금", "사업자금",
+    "정비업창업", "프랜차이즈",
+    # 특정 홍보성 사례
+    "산으로간니모", "홍보글", "홍보 글",
     # 6차 산업/농업
     "6차 산업", "관광농원", "농막",
     # 음식/식자재/주점 (캠핑장과 무관)
@@ -234,8 +253,20 @@ _HARD_REJECT_TITLE = [
     "사이트 6번", "사이트 7번", "사이트 8번", "사이트 9번", "사이트 10번",
     # 질문글
     "배우고 싶어요", "알려주세요", "조언 부탁",
+    "하고싶은데", "하고 싶은데", "뭐부터 알아봐",
     # 추천/소개 후기 패턴
     "캠핏 추천", "캠핑장 추천 후기", "방갈로까지", "수영장 카라반",
+    "가족 추천", "예약 꿀팁", "인상깊었던", "캠핑 이웃",
+    "홈페이지제작", "방방이", "키즈카페 인기 아이템", "산으로 간 니모",
+]
+
+_HARD_REJECT_TEXT = [
+    "광고 대행사", "마케팅 대행사", "실행사만의 노하우", "파트너가 필요",
+    "홈페이지제작", "예약률 30% 높이는 비밀", "키즈카페 인기 아이템",
+    "요즘 캠핑장, 키즈카페, 펜션 사장님", "예약 꿀팁", "산으로 간 니모",
+    "협찬", "체험단", "제휴마케팅", "커미션을 지급", "구매링크",
+    "국성부동산매니지먼트", "원스톱", "더 늦기 전에 시작하세요",
+    "무료 진단", "무료 컨설팅", "관리 전:", "관리 후:",
 ]
 
 # 본문에 있으면 감점 (soft penalty)
@@ -244,6 +275,8 @@ _SOFT_NEGATIVE = [
     "지금 바로 문의", "중개 안내", "전문 중개",
     "제품구매 설치", "구매 문의", "설치 사례",
     "판매합니다", "할인 이벤트", "특별 할인",
+    "할인 받는 팁", "할인받는 팁", "할인 받는법", "할인받는법",
+    "제휴마케팅", "커미션", "파트너스", "구매링크", "협찬", "체험단",
     "대출", "금리", "한도", "융자",
     "카라반 매매", "중고 카라반",
     "펜션 추천", "펜션 후기", "민박",
@@ -255,6 +288,7 @@ _SOFT_NEGATIVE = [
     "수천 건 이상의 설치", "고객 리뷰가 말해", "지금 바로",
     "상담 도와드리겠습니다", "문의 주시면", "전화 주세요",
     "효과 리포트", "성과 보고서",
+    "산으로간니모", "프롬비", "빅팬", "에어바운스", "해외직구",
 ]
 
 # 강한 긍정 신호 (운영자에게 직접 도움이 되는 내용)
@@ -313,8 +347,32 @@ def _classify_category(item: ContentItem) -> str:
 def _is_hard_rejected(item: ContentItem) -> bool:
     """제목 기반 즉시 탈락 판정"""
     title = item.title.lower()
+    combined = f"{item.title} {item.description}".lower()
+    operator_context_words = [
+        "운영", "캠지기", "예약률", "예약 관리", "리뷰 관리", "후기 관리",
+        "재방문", "만족도", "고객 불만", "응대", "요금", "가격",
+        "매출", "수익", "시설 개선", "리모델링", "안전", "인허가",
+    ]
+    has_operator_context = any(w in combined for w in operator_context_words)
+
+    if item.published_date:
+        from datetime import datetime
+        try:
+            pub = item.published_date.replace(tzinfo=None) if item.published_date.tzinfo else item.published_date
+            days_old = (datetime.now() - pub).days
+            if item.source in ["네이버 뉴스", "구글 뉴스"] and days_old > 180:
+                return True
+            if item.source == "네이버 블로그" and days_old > 365:
+                return True
+        except Exception:
+            pass
+
     for signal in _HARD_REJECT_TITLE:
         if signal.lower() in title:
+            return True
+
+    for signal in _HARD_REJECT_TEXT:
+        if signal.lower() in combined:
             return True
     # URL 패턴 기반 탈락
     url = item.url.lower()
@@ -322,7 +380,6 @@ def _is_hard_rejected(item: ContentItem) -> bool:
         return True
 
     # 뉴스: 캠핑장이 핵심 주제인지 확인 (단순 언급만 있는 뉴스 제거)
-    combined = f"{item.title} {item.description}".lower()
     camping_words = ["캠핑장", "글램핑", "야영장", "오토캠핑", "캠지기"]
     if item.source in ["네이버 뉴스", "구글 뉴스"]:
         # 제목에 캠핑 관련 단어가 반드시 있어야 함
@@ -368,8 +425,8 @@ def _is_hard_rejected(item: ContentItem) -> bool:
         visitor_patterns = ["후기", "다녀왔", "다녀온", "캠핑 후기", "방문기",
                             "쉬고 온", "추천해요", "이야기~~~", "이야기~",
                             "예약 방법", "예약방법", "모이세요", "오픈합니다",
-                            "1박2일", "미니멀", "캠이야기"]
-        if any(p in title for p in visitor_patterns):
+                            "1박", "2박", "미니멀", "캠이야기", "공지"]
+        if any(p in title for p in visitor_patterns) and not has_operator_context:
             return True
 
     # 블로그: 제목이 펜션/카페 위주이고 캠핑장은 부수적 언급인 경우
@@ -390,7 +447,7 @@ def _is_hard_rejected(item: ContentItem) -> bool:
 
     # 블로그: 캠핑장 단어가 제목에 없으면 운영자용일 가능성 매우 낮음
     if item.source == "네이버 블로그":
-        camp_words_strict = ["캠핑장", "오토캠핑", "야영장", "글램핑장", "캠지기", "캠핑카"]
+        camp_words_strict = ["캠핑장", "오토캠핑", "야영장", "글램핑장", "캠지기"]
         if not any(w in title for w in camp_words_strict):
             return True
 
@@ -402,7 +459,7 @@ def _is_hard_rejected(item: ContentItem) -> bool:
             "이용 후기", "체험 후기",
         ]
         for p in visitor_review_patterns:
-            if p in title:
+            if p in title and not has_operator_context:
                 return True
 
     return False
@@ -490,6 +547,70 @@ def _deduplicate_similar(items: List[ContentItem]) -> List[ContentItem]:
     return unique
 
 
+def _source_group(item: ContentItem) -> str:
+    """소스 상한 적용을 위한 출처 그룹명."""
+    if item.source.startswith("카페:"):
+        return "카페"
+    return item.source
+
+
+def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int) -> List[ContentItem]:
+    """특정 출처/카테고리가 과도하게 몰리지 않도록 최종 선별 목록을 보정."""
+    source_limits = {
+        "지식iN": 2,
+        "카페": 2,
+        "구글 뉴스": 3,
+        "네이버 뉴스": 4,
+        "네이버 블로그": 4,
+        "정부지원": 3,
+    }
+    category_limit = 3
+
+    selected = []
+    selected_urls = set()
+    source_count = {}
+    category_count = {}
+
+    def can_add(item: ContentItem) -> bool:
+        if item.url in selected_urls or _is_hard_rejected(item):
+            return False
+        source = _source_group(item)
+        if source_count.get(source, 0) >= source_limits.get(source, 3):
+            return False
+        cat = item.category or _classify_category(item)
+        if category_count.get(cat, 0) >= category_limit:
+            return False
+        return True
+
+    def add(item: ContentItem) -> None:
+        if not item.category or item.category in ["블로그", "커뮤니티"]:
+            item.category = _classify_category(item)
+        selected.append(item)
+        selected_urls.add(item.url)
+        source = _source_group(item)
+        source_count[source] = source_count.get(source, 0) + 1
+        category_count[item.category] = category_count.get(item.category, 0) + 1
+
+    for item in items:
+        if can_add(item):
+            add(item)
+        if len(selected) >= count:
+            return selected
+
+    scored_pool = [(item, _rule_based_score(item)) for item in pool if item.url not in selected_urls]
+    scored_pool.sort(key=lambda x: x[1], reverse=True)
+
+    for item, score in scored_pool:
+        if score <= -5.0:
+            continue
+        if can_add(item):
+            add(item)
+        if len(selected) >= count:
+            break
+
+    return selected
+
+
 def _rule_based_filter(items: List[ContentItem], count: int) -> List[ContentItem]:
     """강화된 규칙 기반 필터링"""
     print("    강화된 규칙 기반 필터링...")
@@ -532,6 +653,8 @@ def _rule_based_filter(items: List[ContentItem], count: int) -> List[ContentItem
                     break
 
     # summary 생성 (description 정리)
+    result = _balance_items(result, candidates, count)
+
     for item in result:
         if not item.summary and item.description:
             # HTML 엔티티 정리 + 깔끔하게 자르기
@@ -568,12 +691,20 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
     if not items:
         return []
 
+    eligible_items = [item for item in items if not _is_hard_rejected(item)]
+    rejected = len(items) - len(eligible_items)
+    if rejected:
+        print(f"  사전 제외 필터: {rejected}개 제거 → {len(eligible_items)}개 후보")
+
+    if not eligible_items:
+        return []
+
     if not has_api:
-        return _rule_based_filter(items, count)
+        return _rule_based_filter(eligible_items, count)
 
     # === Step 1: AI 필터링 ===
-    print(f"\n  [Step 1] AI 필터링 ({len(items)}개 → {count}개)...")
-    content_list = _format_content_list(items)
+    print(f"\n  [Step 1] AI 필터링 ({len(eligible_items)}개 → {count}개)...")
+    content_list = _format_content_list(eligible_items)
     prompt = FILTER_PROMPT.format(content_list=content_list, count=count)
 
     response = _call_claude(prompt)
@@ -581,13 +712,17 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
 
     if not selections:
         print("    AI 필터링 실패, 규칙 기반으로 폴백")
-        return _rule_based_filter(items, count)
+        return _rule_based_filter(eligible_items, count)
 
     filtered = []
+    selected_urls = set()
     for sel in selections:
         idx = sel.get("index", -1)
-        if 0 <= idx < len(items):
-            item = items[idx]
+        if 0 <= idx < len(eligible_items):
+            item = eligible_items[idx]
+            if _is_hard_rejected(item) or item.url in selected_urls:
+                continue
+            selected_urls.add(item.url)
             item.category = sel.get("category", "기타")
             filtered.append(item)
 
@@ -596,7 +731,12 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
         print(f"      {i}. [{item.category}] {item.title[:50]}...")
 
     if not filtered:
-        return _rule_based_filter(items, count)
+        return _rule_based_filter(eligible_items, count)
+
+    balanced = _balance_items(filtered, eligible_items, count)
+    if len(balanced) != len(filtered):
+        print(f"    소스 균형 보정: {len(filtered)}개 → {len(balanced)}개")
+    filtered = balanced
 
     # === Step 2: AI 요약 생성 ===
     print(f"\n  [Step 2] AI 요약 생성 ({len(filtered)}개)...")

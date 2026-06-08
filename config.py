@@ -86,7 +86,7 @@ CONTENT_DISTRIBUTION = {
 
 # Newsletter settings
 NEWSLETTER_ITEMS_COUNT = 10
-NEWSLETTER_TITLE_PREFIX = "🏕️ 캠핑장 운영 뉴스레터"
+NEWSLETTER_TITLE_PREFIX = "🏕️ 캠핑장 운영 인사이트 노트"
 
 # Output settings
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")

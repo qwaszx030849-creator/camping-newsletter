@@ -56,8 +56,11 @@ def generate_newsletter_text(items: List[ContentItem], week_info: dict = None) -
     
     # 카카오톡 스타일 헤더 (호환성 높은 포맷)
     lines = [
-        f"🏕️ 캠핑장 운영 뉴스레터",
+        f"🏕️ 캠핑장 운영 인사이트 노트",
         f"📅 {week_info['display']}",
+        "",
+        "주변 캠핑장의 운영 방식과 이용자 후기에서 뽑은 벤치마킹 메모입니다.",
+        "오래 운영한 캠지기도 내 현장에 적용할 힌트만 빠르게 볼 수 있게 정리했습니다.",
         "",
         "ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ",
         "",
@@ -82,7 +85,7 @@ def generate_newsletter_text(items: List[ContentItem], week_info: dict = None) -
     # 푸터
     lines.extend([
         "",
-        "📊 지난 뉴스레터 보기",
+        "📊 지난 인사이트 노트 보기",
         "👉 camping-newsletter.vercel.app",
         "",
         "💡 매주 월요일 발송"

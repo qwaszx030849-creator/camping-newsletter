@@ -25,8 +25,15 @@ def _load_previous_urls() -> Set[str]:
     """이전 뉴스레터에서 사용된 URL 목록을 로드하여 중복 방지"""
     used_urls = set()
     archive_dir = os.path.join(os.path.dirname(__file__), "archive")
+    current_week = get_week_info()
+    current_filename = (
+        f"newsletter_{current_week['year']}_{current_week['month']:02d}_"
+        f"week{current_week['week_of_month']}.json"
+    )
 
     for json_file in glob.glob(os.path.join(archive_dir, "**", "*.json"), recursive=True):
+        if os.path.basename(json_file) == current_filename:
+            continue
         try:
             with open(json_file, "r", encoding="utf-8") as f:
                 data = json.load(f)

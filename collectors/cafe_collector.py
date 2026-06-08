@@ -27,6 +27,33 @@ class NaverCafeCollector(BaseCollector):
         "오토캠핑",
         "캠핑클럽",
     ]
+
+    OPERATOR_SIGNALS = [
+        "캠지기", "운영", "사장", "대표", "관리", "정비", "요금", "가격",
+        "예약률", "예약 관리", "환불", "민원", "불만", "리뷰", "별점",
+        "매출", "수익", "비수기", "성수기", "시설", "공사", "보수",
+        "데크", "파쇄석", "타프존", "수영장", "샤워실", "화장실",
+        "안전", "인허가", "등록", "신고", "주류허가", "지원사업",
+    ]
+
+    EXCLUDE_SIGNALS = [
+        # 소비자용 후기/할인/홍보
+        "할인 받는 팁", "할인받는 팁", "할인 받는법", "할인받는법",
+        "할인 쿠폰", "입장권", "무료입장권", "참가자발표", "행사 예고",
+        "예약 방법", "예약방법", "이용 안내", "다녀왔", "다녀온",
+        "방문 후기", "솔직 후기", "이용 후기", "방문기", "1박", "2박", "추천", "가볼만한",
+        "정기 캠핑", "정캠", "뉴스레터", "공지", "예약 숙소", "물놀이 명당",
+        # 캠핑카/차량/용품
+        "캠핑카", "캠핑트레일러", "카라반 구매", "카라반 매매",
+        "1톤", "중고차", "정비업창업", "루프탑", "차박", "노지",
+        "프롬비", "빅팬", "선풍기", "서큘레이터", "텐트", "타프 추천",
+        "캠핑용품", "장비", "필수템", "준비물",
+        # 광고/창업/매물
+        "산으로간니모", "제휴마케팅", "광고", "홍보글", "홍보 글",
+        "협찬", "체험단", "커미션", "구매링크", "파트너스",
+        "창업", "사업자금", "대출", "매매", "양도", "급매", "분양", "매입 운영",
+        "마케팅 대행", "광고 대행", "무료 상담", "상담 문의",
+    ]
     
     def __init__(self):
         super().__init__("naver_cafe")
@@ -56,13 +83,15 @@ class NaverCafeCollector(BaseCollector):
             "X-Naver-Client-Secret": self.client_secret
         }
         
-        # Search with camping-related keywords
+        # Search with camping-site operator keywords.
         business_keywords = [
             "캠핑장 운영",
             "캠핑장 사장",
-            "캠핑장 창업",
             "캠핑장 시설",
             "캠핑장 마케팅",
+            "캠지기 운영",
+            "야영장 인허가",
+            "캠핑장 환불",
         ]
         
         search_keywords = keywords + business_keywords
@@ -90,14 +119,25 @@ class NaverCafeCollector(BaseCollector):
                     
                     # Get cafe name from the response
                     cafe_name = item.get("cafename", "네이버 카페")
-                    
+                    title = self._clean_text(item.get("title", ""))
+                    description = self._clean_text(item.get("description", ""))
+                    combined = f"{title} {description}".lower()
+
+                    if any(signal.lower() in combined for signal in self.EXCLUDE_SIGNALS):
+                        continue
+
+                    operator_score = sum(1 for signal in self.OPERATOR_SIGNALS if signal.lower() in combined)
+                    if operator_score < 2:
+                        continue
+
                     content_item = ContentItem(
-                        title=self._clean_text(item.get("title", "")),
+                        title=title,
                         url=url,
                         source=f"카페: {cafe_name}",
-                        description=self._clean_text(item.get("description", "")),
+                        description=description,
                         published_date=None,  # Cafe API doesn't return date
-                        category="커뮤니티"
+                        category="커뮤니티",
+                        score=float(operator_score)
                     )
                     items.append(content_item)
                 
