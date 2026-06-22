@@ -547,6 +547,23 @@ def _deduplicate_similar(items: List[ContentItem]) -> List[ContentItem]:
     return unique
 
 
+def _is_similar_topic(item: ContentItem, selected: List[ContentItem]) -> bool:
+    """이미 선별된 콘텐츠와 같은 소재인지 판정."""
+    kw = _extract_keywords(f"{item.title} {item.description}")
+    if len(kw) <= 3:
+        return False
+
+    for existing in selected:
+        seen_kw = _extract_keywords(f"{existing.title} {existing.description}")
+        if len(seen_kw) <= 3:
+            continue
+        overlap = len(kw & seen_kw)
+        smaller = min(len(kw), len(seen_kw))
+        if smaller > 0 and overlap / smaller >= 0.45:
+            return True
+    return False
+
+
 def _source_group(item: ContentItem) -> str:
     """소스 상한 적용을 위한 출처 그룹명."""
     if item.source.startswith("카페:"):
@@ -573,6 +590,8 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
 
     def can_add(item: ContentItem) -> bool:
         if item.url in selected_urls or _is_hard_rejected(item):
+            return False
+        if _is_similar_topic(item, selected):
             return False
         source = _source_group(item)
         if source_count.get(source, 0) >= source_limits.get(source, 3):
@@ -720,7 +739,7 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
         idx = sel.get("index", -1)
         if 0 <= idx < len(eligible_items):
             item = eligible_items[idx]
-            if _is_hard_rejected(item) or item.url in selected_urls:
+            if _is_hard_rejected(item) or item.url in selected_urls or _is_similar_topic(item, filtered):
                 continue
             selected_urls.add(item.url)
             item.category = sel.get("category", "기타")
