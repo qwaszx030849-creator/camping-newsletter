@@ -57,14 +57,17 @@ FILTER_PROMPT = """당신은 캠핑장 담당 MD입니다. 캠핑장 사장님(�
 ### 반드시 선별할 콘텐츠
 - 캠핑장 매출/예약률을 올린 구체적인 성공 사례 (수치 포함이면 최고)
 - 캠핑장 시설 개선 후 효과를 본 사례 (화장실, 샤워실 등)
+- 캠퍼 후기에서 운영자가 참고할 수 있는 포인트가 명확한 글 (청결, 응대, 수영장, 아이 체험, 반려견, 사이트 간격, 재방문 이유, 불편사항)
 - 예약/리뷰 관리 노하우 (네이버 플레이스, 블로그, 인스타)
 - 계절별 운영 전략 (성수기 대비, 비수기 매출)
-- 캠핑장 관련 정부 지원금/보조금 정보
-- 캠핑 산업 동향, 통계, 시장 변화
+- 전국 캠핑장에 공통으로 적용되는 제도/안전/인허가 이슈
+- 캠핑 산업 동향, 통계, 시장 변화, 운영 트렌드
 - 고객 응대/불만 해결 실전 사례
 
 ### 반드시 제외할 콘텐츠
 - 단순 캠핑장 방문 후기, 여행 코스 추천
+- 특정 지역/지자체에만 해당하는 지원사업, 보조금, 공모, 교육, 행사 공지
+- 특정 지역 공공 캠핑장 개장/정비 기사 중 운영 방식 인사이트가 없는 글
 - 캠핑장 할인 받는 법, 예약 할인 팁, 쿠폰/프로모션 안내
 - 캠핑 용품/장비 리뷰 (텐트, 침낭 등)
 - 캠핑카/차박/1톤 트럭/캠핑카 정비업/차량 구매 콘텐츠
@@ -91,7 +94,7 @@ FILTER_PROMPT = """당신은 캠핑장 담당 MD입니다. 캠핑장 사장님(�
 ]
 ```
 
-카테고리: 운영노하우, 매출전략, 마케팅, 시설개선, 정부지원, 산업동향, 고객관리 중 택 1"""
+카테고리: 운영노하우, 매출전략, 마케팅, 시설개선, 산업동향, 고객관리, 후기인사이트 중 택 1"""
 
 
 # ============================================================================
@@ -102,6 +105,7 @@ SUMMARY_PROMPT = """아래 콘텐츠들의 핵심 요약을 생성해주세요. 
 요약 규칙:
 - 첫 줄: 핵심 인사이트 (캠핑장 사장님이 얻을 수 있는 것)
 - 둘째 줄: 구체적인 수치나 방법이 있으면 포함
+- 후기 콘텐츠는 "이 캠핑장이 왜 좋게 보였는지"와 "내 캠핑장에 적용할 운영 포인트"를 분리해서 작성
 - "~합니다" 체로 작성
 - 광고성 문구 제거, 팩트만
 
@@ -217,13 +221,17 @@ _HARD_REJECT_TITLE = [
     "할인 쿠폰", "할인 받기", "할인받기", "예약 숙소", "물놀이 명당",
     "행사 예고", "참가자발표", "참가자 발표", "정기 캠핑", "정캠",
     "뉴스레터",
+    "지원사업 모집", "지원 사업 모집", "우수캠핑장 지원사업",
+    "사업자 집합 안전교육", "집합 안전교육", "공모사업", "공모 사업",
+    "정식 개장", "시설 19일 개장", "글램핑장 19일 개장",
+    "글램핑 개장", "여름 관광객 맞이",
     # 캠핑 용품/장비
     "텐트 추천", "캠핑용품", "매트 추천", "침낭 추천", "그릴 추천",
     "필수템", "캠핑 준비물", "프롬비", "빅팬", "선풍기", "서큘레이터",
     "에어바운스", "해외직구",
     # 캠핑카/차량
     "캠핑카", "1톤", "캠핑트레일러", "캠핑카정비업", "캠핑카 정비",
-    "중고 캠핑카", "루프탑", "차량용품",
+    "중고 캠핑카", "루프탑", "차량용품", "캠지기 버스", "버스 빌려",
     # 음식
     "맛집", "먹방", "밀키트", "냉면", "레시피",
     # 차박/노지
@@ -267,6 +275,10 @@ _HARD_REJECT_TEXT = [
     "협찬", "체험단", "제휴마케팅", "커미션을 지급", "구매링크",
     "국성부동산매니지먼트", "원스톱", "더 늦기 전에 시작하세요",
     "무료 진단", "무료 컨설팅", "관리 전:", "관리 후:",
+    "자부담", "신청서 제출", "모집합니다", "마케팅전략팀",
+    "문화관광공사", "지자체 공모", "군청", "시청 관광과",
+    "정식 개장하고 본격적인 운영", "여름 관광객들에게 선보인다",
+    "통합예약시스템", "멤버쉽 대상으로", "멤버십 대상으로",
 ]
 
 # 본문에 있으면 감점 (soft penalty)
@@ -297,6 +309,9 @@ _STRONG_POSITIVE = [
     "매출 올리", "매출 상승", "매출 증가", "매출 극대화",
     "예약률 높", "예약률 상승", "예약 증가",
     "재방문율", "재방문 높", "고객 만족도",
+    "재방문 후기", "또 가고 싶은", "다시 방문", "사장님 친절",
+    "아이 체험", "체험 프로그램", "수영장 운영", "반려견", "애견",
+    "사이트 간격", "사이트 배치", "청결", "화장실 깨끗", "샤워실 깨끗",
     # 운영 노하우
     "운영 노하우", "운영 전략", "운영 팁", "운영 비결",
     "성공 비결", "성공 사례", "성공한 캠핑장",
@@ -329,8 +344,10 @@ _SOURCE_BONUS = {
 def _classify_category(item: ContentItem) -> str:
     """콘텐츠 카테고리 자동 분류"""
     text = f"{item.title} {item.description}".lower()
-    if any(w in text for w in ["지원사업", "보조금", "지원금", "국비", "공모", "인허가", "안전점검"]):
-        return "정부지원"
+    if any(w in text for w in ["후기", "재방문", "친절", "청결", "아이", "수영장", "체험", "애견", "반려견", "사이트 간격"]):
+        return "후기인사이트"
+    if any(w in text for w in ["인허가", "안전점검", "안전기준", "등록 기준", "민원"]):
+        return "운영노하우"
     if any(w in text for w in ["시장", "동향", "트렌드", "통계", "산업", "성장", "인구"]):
         return "산업동향"
     if any(w in text for w in ["마케팅", "인스타", "플레이스", "상위노출", "블로그", "sns", "홍보"]):
@@ -344,6 +361,23 @@ def _classify_category(item: ContentItem) -> str:
     return "운영노하우"
 
 
+def _has_review_insight(item: ContentItem) -> bool:
+    """방문 후기라도 운영자가 벤치마킹할 포인트가 있으면 허용."""
+    text = f"{item.title} {item.description}".lower()
+    review_words = [
+        "후기", "다녀왔", "다녀온", "방문기", "재방문", "또 가고",
+        "추천 이유", "좋았던 점", "아쉬운 점",
+    ]
+    insight_words = [
+        "사장님", "친절", "응대", "청결", "깨끗", "화장실", "샤워실",
+        "개수대", "수영장", "물놀이", "아이", "체험", "프로그램",
+        "반려견", "애견", "울타리", "사이트 간격", "사이트 배치",
+        "그늘", "소음", "매너타임", "환불", "양도", "예약", "재방문",
+        "불편", "개선", "관리",
+    ]
+    return any(w in text for w in review_words) and any(w in text for w in insight_words)
+
+
 def _is_hard_rejected(item: ContentItem) -> bool:
     """제목 기반 즉시 탈락 판정"""
     title = item.title.lower()
@@ -354,6 +388,22 @@ def _is_hard_rejected(item: ContentItem) -> bool:
         "매출", "수익", "시설 개선", "리모델링", "안전", "인허가",
     ]
     has_operator_context = any(w in combined for w in operator_context_words)
+    has_review_insight = _has_review_insight(item)
+
+    local_region_terms = [
+        "경상북도", "경상남도", "전라북도", "전라남도", "충청북도", "충청남도",
+        "강원도", "경기도", "제주도", "서울시", "부산시", "대구시", "인천시",
+        "광주시", "대전시", "울산시", "세종시",
+        "양평군", "고창군", "완주군", "청도군", "무주군", "아산시",
+    ]
+    local_notice_terms = [
+        "지원사업", "보조금", "공모", "모집", "교육 실시", "집합 안전교육",
+        "선제 실시", "개장", "정식 개장", "시설 정비", "시설 개선비",
+    ]
+    if any(w.lower() in combined for w in local_region_terms) and any(
+        w.lower() in combined for w in local_notice_terms
+    ) and not has_review_insight:
+        return True
 
     if item.published_date:
         from datetime import datetime
@@ -368,11 +418,11 @@ def _is_hard_rejected(item: ContentItem) -> bool:
             pass
 
     for signal in _HARD_REJECT_TITLE:
-        if signal.lower() in title:
+        if signal.lower() in title and not has_review_insight:
             return True
 
     for signal in _HARD_REJECT_TEXT:
-        if signal.lower() in combined:
+        if signal.lower() in combined and not has_review_insight:
             return True
     # URL 패턴 기반 탈락
     url = item.url.lower()
@@ -393,7 +443,8 @@ def _is_hard_rejected(item: ContentItem) -> bool:
         "가볼 만한 곳", "여행 코스", "관광지", "해변이 어우러",
     ]
     if any(w in combined for w in irrelevant_topics):
-        return True
+        if not has_review_insight:
+            return True
 
     # 제품 광고/리뷰 패턴 탈락
     ad_patterns = [
@@ -426,7 +477,7 @@ def _is_hard_rejected(item: ContentItem) -> bool:
                             "쉬고 온", "추천해요", "이야기~~~", "이야기~",
                             "예약 방법", "예약방법", "모이세요", "오픈합니다",
                             "1박", "2박", "미니멀", "캠이야기", "공지"]
-        if any(p in title for p in visitor_patterns) and not has_operator_context:
+        if any(p in title for p in visitor_patterns) and not has_operator_context and not has_review_insight:
             return True
 
     # 블로그: 제목이 펜션/카페 위주이고 캠핑장은 부수적 언급인 경우
@@ -459,7 +510,7 @@ def _is_hard_rejected(item: ContentItem) -> bool:
             "이용 후기", "체험 후기",
         ]
         for p in visitor_review_patterns:
-            if p in title and not has_operator_context:
+            if p in title and not has_operator_context and not has_review_insight:
                 return True
 
     return False
@@ -581,7 +632,11 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         "네이버 블로그": 4,
         "정부지원": 3,
     }
-    category_limit = 3
+    default_category_limit = 3
+    category_limits = {
+        "후기인사이트": 5,
+        "운영노하우": 4,
+    }
 
     selected = []
     selected_urls = set()
@@ -597,7 +652,7 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         if source_count.get(source, 0) >= source_limits.get(source, 3):
             return False
         cat = item.category or _classify_category(item)
-        if category_count.get(cat, 0) >= category_limit:
+        if category_count.get(cat, 0) >= category_limits.get(cat, default_category_limit):
             return False
         return True
 

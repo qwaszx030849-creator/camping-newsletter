@@ -1,6 +1,6 @@
 """
 Government Support Collector
-정부/지자체 캠핑장 관련 지원사업 정보를 수집합니다.
+전국 캠핑장 운영자가 참고할 수 있는 제도/안전/인허가 이슈를 수집합니다.
 
 주요 소스:
 - 기업마당 (bizinfo.go.kr)
@@ -20,32 +20,19 @@ from config import NAVER_CLIENT_ID, NAVER_CLIENT_SECRET
 
 class GovernmentSupportCollector(BaseCollector):
     """
-    정부 지원사업 수집기
-    네이버 뉴스/카페 검색을 통해 캠핑장 관련 정부 지원 정보 수집
+    제도/안전 이슈 수집기
+    지역 한정 지원사업보다 전국 캠핑장 운영자가 참고할 수 있는 정보 수집
     """
     
     API_URL = "https://openapi.naver.com/v1/search/news.json"
     
-    # 정부 지원사업 전용 키워드
+    # 지역 공고보다 전국 공통 제도/운영 리스크 중심 키워드
     SUPPORT_KEYWORDS = [
-        # 직접 지원
-        "캠핑장 지원사업 공고",
-        "야영장 보조금",
-        "관광사업자 지원금",
-        "농촌관광 지원사업",
-        "농촌체험휴양마을 공모",
-        
-        # 시설 지원
-        "캠핑장 시설개선 지원",
-        "친환경 관광시설 지원",
-        "관광 편의시설 지원",
-        
-        # 융자/교육
-        "관광사업자 융자",
-        "소상공인 관광업",
-        "관광업 교육 지원",
-        
-        # 인허가
+        "캠핑장 안전기준",
+        "야영장 안전관리",
+        "캠핑장 화재 안전",
+        "캠핑장 물놀이 안전",
+        "캠핑장 민원 대응",
         "야영장 등록 기준",
         "캠핑장 인허가",
     ]
@@ -56,7 +43,7 @@ class GovernmentSupportCollector(BaseCollector):
         self.client_secret = NAVER_CLIENT_SECRET
     
     def collect(self, keywords: List[str] = None) -> List[ContentItem]:
-        """정부 지원사업 관련 뉴스 수집"""
+        """전국 공통 제도/안전 관련 뉴스 수집"""
         if not self.client_id or not self.client_secret:
             self.logger.warning("Naver API credentials not configured")
             return []
@@ -89,11 +76,19 @@ class GovernmentSupportCollector(BaseCollector):
                     title = self._clean_text(item.get("title", ""))
                     description = self._clean_text(item.get("description", ""))
                     
-                    # 정부 지원과 관련 있는지 필터링
-                    relevance_keywords = ["지원", "공고", "모집", "신청", "보조금", "융자", "지자체", "정부"]
+                    # 지역 한정 공고/지원사업은 제외하고 운영 리스크 이슈만 유지
+                    relevance_keywords = [
+                        "안전", "등록", "인허가", "기준", "점검", "화재",
+                        "물놀이", "민원", "위생", "소방", "야영장",
+                    ]
+                    local_notice_keywords = [
+                        "지원사업", "보조금", "공모", "모집", "신청", "융자",
+                        "시설개선 지원", "교육 실시", "집합 안전교육",
+                    ]
                     is_relevant = any(kw in title or kw in description for kw in relevance_keywords)
+                    is_local_notice = any(kw in title or kw in description for kw in local_notice_keywords)
                     
-                    if not is_relevant:
+                    if not is_relevant or is_local_notice:
                         continue
                     
                     if url in seen_urls:
@@ -114,10 +109,10 @@ class GovernmentSupportCollector(BaseCollector):
                     content_item = ContentItem(
                         title=title,
                         url=url,
-                        source="정부지원",
+                        source="제도/안전",
                         description=description,
                         published_date=pub_date,
-                        category="정부지원"
+                        category="운영노하우"
                     )
                     items.append(content_item)
                 

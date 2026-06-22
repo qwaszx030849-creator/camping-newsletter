@@ -54,6 +54,14 @@ class NaverCafeCollector(BaseCollector):
         "창업", "사업자금", "대출", "매매", "양도", "급매", "분양", "매입 운영",
         "마케팅 대행", "광고 대행", "무료 상담", "상담 문의",
     ]
+
+    REVIEW_INSIGHT_SIGNALS = [
+        "재방문", "또 가고", "사장님 친절", "친절", "응대",
+        "청결", "깨끗", "화장실", "샤워실", "개수대",
+        "수영장", "물놀이", "아이", "체험", "프로그램",
+        "반려견", "애견", "울타리", "사이트 간격", "사이트 배치",
+        "매너타임", "소음", "환불", "양도", "예약", "불편", "관리",
+    ]
     
     def __init__(self):
         super().__init__("naver_cafe")
@@ -122,12 +130,17 @@ class NaverCafeCollector(BaseCollector):
                     title = self._clean_text(item.get("title", ""))
                     description = self._clean_text(item.get("description", ""))
                     combined = f"{title} {description}".lower()
+                    review_insight_score = sum(
+                        1 for signal in self.REVIEW_INSIGHT_SIGNALS
+                        if signal.lower() in combined
+                    )
+                    has_review_insight = review_insight_score >= 2
 
-                    if any(signal.lower() in combined for signal in self.EXCLUDE_SIGNALS):
+                    if any(signal.lower() in combined for signal in self.EXCLUDE_SIGNALS) and not has_review_insight:
                         continue
 
                     operator_score = sum(1 for signal in self.OPERATOR_SIGNALS if signal.lower() in combined)
-                    if operator_score < 2:
+                    if operator_score < 2 and not has_review_insight:
                         continue
 
                     content_item = ContentItem(
@@ -137,7 +150,7 @@ class NaverCafeCollector(BaseCollector):
                         description=description,
                         published_date=None,  # Cafe API doesn't return date
                         category="커뮤니티",
-                        score=float(operator_score)
+                        score=float(operator_score + review_insight_score)
                     )
                     items.append(content_item)
                 

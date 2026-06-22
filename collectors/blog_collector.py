@@ -104,6 +104,14 @@ class NaverBlogCollector(BaseCollector):
         "캠핑장 창업", "창업 비용", "창업자금", "사업자금",
     ]
 
+    REVIEW_INSIGHT_SIGNALS = [
+        "재방문", "또 가고", "사장님 친절", "친절", "응대",
+        "청결", "깨끗", "화장실", "샤워실", "개수대",
+        "수영장", "물놀이", "아이", "체험", "프로그램",
+        "반려견", "애견", "울타리", "사이트 간격", "사이트 배치",
+        "매너타임", "소음", "환불", "양도", "예약", "불편", "관리",
+    ]
+
     def collect(self, keywords: List[str], max_items_per_keyword: int = 10) -> List[ContentItem]:
         """
         Collect blog posts from Naver Blog Search API
@@ -166,20 +174,22 @@ class NaverBlogCollector(BaseCollector):
                     # 2단계: 운영자 관점 점수 계산
                     operator_score = sum(1 for w in self.OPERATOR_SIGNALS if w in combined_lower)
                     visitor_score = sum(1 for w in self.VISITOR_SIGNALS if w in combined_lower)
+                    review_insight_score = sum(1 for w in self.REVIEW_INSIGHT_SIGNALS if w in combined_lower)
+                    has_review_insight = review_insight_score >= 2
                     
-                    # 운영자 점수가 2 미만이면 운영자에게 도움 안됨
-                    if operator_score < 2:
+                    # 운영자 신호가 약하더라도 후기 안에 운영 포인트가 있으면 후보로 남김
+                    if operator_score < 2 and not has_review_insight:
                         continue
                     
-                    # 방문객 점수가 운영자 점수보다 높으면 방문객용 콘텐츠
-                    if visitor_score > operator_score:
+                    # 방문객 점수가 높아도 운영 포인트가 있는 후기는 인사이트 후보로 유지
+                    if visitor_score > operator_score and not has_review_insight:
                         continue
                     
                     # 제목에 운영자 신호가 하나도 없으면 제외
                     title_lower = title.lower()
                     title_has_operator_signal = any(w in title_lower for w in self.OPERATOR_SIGNALS)
                     title_has_visitor_signal = any(w in title_lower for w in self.VISITOR_SIGNALS)
-                    if not title_has_operator_signal and title_has_visitor_signal:
+                    if not title_has_operator_signal and title_has_visitor_signal and not has_review_insight:
                         continue
                     
                     seen_urls.add(url)
@@ -193,7 +203,7 @@ class NaverBlogCollector(BaseCollector):
                             pass
                     
                     # 점수를 저장하여 나중에 정렬에 활용
-                    net_score = operator_score - visitor_score
+                    net_score = operator_score + review_insight_score - visitor_score
                     
                     content_item = ContentItem(
                         title=title,
