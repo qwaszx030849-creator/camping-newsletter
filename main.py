@@ -104,6 +104,13 @@ def collect_all_content() -> List[ContentItem]:
             "오토캠핑장 성수기 준비",
             "캠핑장 사이트 데크 조성",
         ]
+        if datetime.now().month in (6, 7, 8):
+            blog_keywords.extend([
+                "캠핑장 장마 운영 배수 안전",
+                "캠핑장 폭염 운영 온열질환",
+                "캠핑장 수영장 안전관리",
+                "캠핑장 여름 위생 식중독",
+            ])
         blog_items = NaverBlogCollector().collect(blog_keywords)
         all_items.extend(blog_items)
         print(f"   -> {len(blog_items)}개 수집")
@@ -122,6 +129,13 @@ def collect_all_content() -> List[ContentItem]:
             "오토캠핑장 안전 점검",
             "캠핑장 등록 인허가",
         ]
+        if datetime.now().month in (6, 7, 8):
+            news_keywords.extend([
+                "야영장 집중호우 장마 안전",
+                "캠핑장 폭염 온열질환",
+                "캠핑장 물놀이 안전",
+                "캠핑장 식중독 위생",
+            ])
         news_items = NaverNewsCollector().collect(news_keywords)
         all_items.extend(news_items)
         print(f"   -> {len(news_items)}개 수집")
