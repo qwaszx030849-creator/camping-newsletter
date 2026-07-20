@@ -26,6 +26,9 @@ export interface Newsletter {
     created_at: string;
     items: NewsletterItem[];
     items_count: number;
+    review_candidates?: NewsletterItem[];
+    review_status?: string;
+    reviewed_at?: string;
 }
 
 // Path to archive directory (inside dashboard)

@@ -16,7 +16,7 @@ from collectors.naver_news import NaverNewsCollector
 from collectors.cafe_collector import NaverCafeCollector
 from collectors.government_support import GovernmentSupportCollector
 from collectors.kin_collector import NaverKinCollector
-from ai_filter import filter_content
+from ai_filter import filter_content, prepare_replacement_candidates
 from newsletter_generator import save_newsletter, get_week_info
 from kakao_sender import send_newsletter
 
@@ -233,6 +233,7 @@ def run_newsletter_pipeline(test_mode: bool = True, skip_send: bool = False):
     print("=" * 50)
 
     filtered_items = filter_content(all_items)
+    replacement_candidates = prepare_replacement_candidates(all_items, filtered_items)
     print(f"총 {len(all_items)}개 중 {len(filtered_items)}개 선별")
 
     # 3단계: 뉴스레터 생성
@@ -241,7 +242,7 @@ def run_newsletter_pipeline(test_mode: bool = True, skip_send: bool = False):
     print("=" * 50)
 
     week_info = get_week_info()
-    result = save_newsletter(filtered_items, week_info)
+    result = save_newsletter(filtered_items, week_info, replacement_candidates)
 
     print("\n  뉴스레터 미리보기:")
     print("-" * 40)

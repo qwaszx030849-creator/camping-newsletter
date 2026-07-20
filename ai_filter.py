@@ -871,3 +871,32 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
             print(f"      → {item.summary[:60]}...")
 
     return filtered[:count]
+
+
+def prepare_replacement_candidates(
+    items: List[ContentItem],
+    selected: List[ContentItem],
+    limit: int = 30,
+) -> List[ContentItem]:
+    """Return extra review candidates that can refill X-ed newsletter slots."""
+    selected_urls = {item.url for item in selected if item.url}
+    candidates = []
+
+    for item in items:
+        if not item.url or item.url in selected_urls:
+            continue
+        if _is_hard_rejected(item):
+            continue
+        if not item.category or item.category in ["釉붾줈洹?", "而ㅻ??덊떚"]:
+            item.category = _classify_category(item)
+        item.score = _rule_based_score(item)
+        if item.score <= -5.0:
+            continue
+        if not item.summary and item.description:
+            desc = item.description.replace("&quot;", '"').replace("&amp;", "&")
+            item.summary = desc[:220].strip()
+        candidates.append(item)
+
+    candidates = _deduplicate_similar(candidates)
+    candidates.sort(key=lambda item: item.score, reverse=True)
+    return candidates[:limit]

@@ -94,7 +94,11 @@ def generate_newsletter_text(items: List[ContentItem], week_info: dict = None) -
     return "\n".join(lines)
 
 
-def generate_newsletter_json(items: List[ContentItem], week_info: dict = None) -> dict:
+def generate_newsletter_json(
+    items: List[ContentItem],
+    week_info: dict = None,
+    review_candidates: List[ContentItem] = None,
+) -> dict:
     """
     Generate newsletter as JSON for dashboard storage
     
@@ -114,11 +118,19 @@ def generate_newsletter_json(items: List[ContentItem], week_info: dict = None) -
         "week_info": week_info,
         "created_at": datetime.now().isoformat(),
         "items": [item.to_dict() for item in items],
-        "items_count": len(items)
+        "items_count": len(items),
+        "review_candidates": [
+            item.to_dict() for item in (review_candidates or [])
+        ],
+        "review_status": "draft"
     }
 
 
-def save_newsletter(items: List[ContentItem], week_info: dict = None) -> dict:
+def save_newsletter(
+    items: List[ContentItem],
+    week_info: dict = None,
+    review_candidates: List[ContentItem] = None,
+) -> dict:
     """
     Save newsletter to both text and JSON formats
     
@@ -154,7 +166,7 @@ def save_newsletter(items: List[ContentItem], week_info: dict = None) -> dict:
     
     # Generate content
     text_content = generate_newsletter_text(items, week_info)
-    json_content = generate_newsletter_json(items, week_info)
+    json_content = generate_newsletter_json(items, week_info, review_candidates)
     
     # Save files
     with open(text_path, 'w', encoding='utf-8') as f:
