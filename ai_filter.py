@@ -430,6 +430,14 @@ def _is_hard_rejected(item: ContentItem) -> bool:
     ) and not has_review_insight:
         return True
 
+    sensational_operator_terms = [
+        "위탁운영", "위탁 운영", "폐업을 고민", "폐업 고민", "반값에도 안 팔",
+        "캠핑 시장의 추락", "시장 추락", "제국의 몰락", "시장의 몰락",
+        "캠핑장의 몰락", "몰락",
+    ]
+    if any(w.lower() in combined for w in sensational_operator_terms):
+        return True
+
     if item.published_date:
         from datetime import datetime
         try:
