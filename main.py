@@ -99,17 +99,18 @@ def collect_all_content() -> List[ContentItem]:
             "오토캠핑장 운영 성공 사례",
             "캠핑장 사장님 예약률 높이는 방법",
             "캠핑장 리뷰 관리 네이버플레이스",
+            "캠핑장 재방문 후기 청결 친절",
+            "캠핑장 수영장 후기 아이 체험",
             "캠핑장 시설 개선 사이트 조성",
             "캠핑장 비수기 운영 전략",
             "오토캠핑장 성수기 준비",
             "캠핑장 사이트 데크 조성",
         ]
-        if datetime.now().month in (6, 7, 8):
+        if datetime.now().month in (6, 7, 8, 9):
             blog_keywords.extend([
-                "캠핑장 장마 운영 배수 안전",
-                "캠핑장 폭염 운영 온열질환",
-                "캠핑장 수영장 안전관리",
-                "캠핑장 여름 위생 식중독",
+                "캠핑장 여름 운영 수영장 후기",
+                "캠핑장 가을 성수기 예약 전략",
+                "캠핑장 우천 환불 운영 사례",
             ])
         blog_items = NaverBlogCollector().collect(blog_keywords)
         all_items.extend(blog_items)
@@ -123,18 +124,16 @@ def collect_all_content() -> List[ContentItem]:
     print("\n[2/6] 네이버 뉴스 수집...")
     try:
         news_keywords = [
-            "캠핑장 정책 지원",
             "캠핑 산업 동향 시장",
-            "야영장 지원사업 보조금",
-            "오토캠핑장 안전 점검",
-            "캠핑장 등록 인허가",
+            "캠핑장 예약 플랫폼 시장",
+            "캠핑장 이용객 만족도 리뷰",
+            "숙박업 데이터 마케팅 리뷰 관리",
+            "오토캠핑장 운영 트렌드",
         ]
-        if datetime.now().month in (6, 7, 8):
+        if datetime.now().month in (6, 7, 8, 9):
             news_keywords.extend([
-                "야영장 집중호우 장마 안전",
-                "캠핑장 폭염 온열질환",
-                "캠핑장 물놀이 안전",
-                "캠핑장 식중독 위생",
+                "캠핑장 성수기 운영 트렌드",
+                "야영장 환불 예약 취소 분쟁",
             ])
         news_items = NaverNewsCollector().collect(news_keywords)
         all_items.extend(news_items)
@@ -151,6 +150,8 @@ def collect_all_content() -> List[ContentItem]:
             "캠핑장 산업 동향 2026",
             "오토캠핑장 운영 트렌드",
             "캠핑장 예약 플랫폼 시장",
+            "캠핑장 고객 리뷰 만족도",
+            "숙박업 데이터 기반 마케팅",
         ]
         google_items = GoogleNewsCollector().collect(google_keywords)
         all_items.extend(google_items)
@@ -168,6 +169,10 @@ def collect_all_content() -> List[ContentItem]:
             "오토캠핑장 사장님 운영 팁",
             "캠핑장 예약 관리 성수기",
             "캠핑장 사이트 관리 정비",
+            "캠핑장 재방문 후기 친절 청결",
+            "캠핑장 수영장 후기 아이 체험",
+            "캠핑장 환불 응대 후기",
+            "캠지기 평일 운영 일상",
         ]
         cafe_items = NaverCafeCollector().collect(cafe_keywords)
         all_items.extend(cafe_items)
@@ -180,9 +185,9 @@ def collect_all_content() -> List[ContentItem]:
     # ========================================
     print("\n[5/6] 정부 지원사업 수집...")
     try:
-        gov_items = GovernmentSupportCollector().collect()
+        gov_items = GovernmentSupportCollector().collect()[:2]
         all_items.extend(gov_items)
-        print(f"   -> {len(gov_items)}개 수집")
+        print(f"   -> {len(gov_items)}개 수집 (전국 공통 참고용만 제한 반영)")
     except Exception as e:
         print(f"   Error: {e}")
 

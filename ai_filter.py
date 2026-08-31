@@ -60,14 +60,15 @@ FILTER_PROMPT = """당신은 캠핑장 담당 MD입니다. 캠핑장 사장님(�
 - 캠퍼 후기에서 운영자가 참고할 수 있는 포인트가 명확한 글 (청결, 응대, 수영장, 아이 체험, 반려견, 사이트 간격, 재방문 이유, 불편사항)
 - 숙박업 공통 리스크 공지 (오버부킹, 예약 취소 배상, 위생/원산지, 환불 규정)
 - 전국 캠핑장에 적용 가능한 예약/리뷰 관리 노하우
-- 발행 시점의 계절별 운영 전략 (장마, 집중호우, 폭염, 물놀이, 식중독, 태풍, 동파, 화재 등)
-- 전국 캠핑장에 공통으로 적용되는 제도/안전/인허가 이슈
+- 발행 시점의 계절별 운영 전략은 캠핑장 환불/동선/시설 운영 의사결정에 직접 연결될 때만 선별
+- 전국 캠핑장에 공통으로 적용되는 제도/안전/인허가 이슈는 꼭 필요한 공지급만 선별
 - 캠핑 산업 동향, 통계, 시장 변화, 운영 트렌드
 - 고객 응대/불만 해결 실전 사례
 
 ### 최종 구성 원칙
-- 계절 운영/안전/위생 콘텐츠를 최소 4개 포함
-- 캠퍼 후기 기반 운영 인사이트를 2~3개 포함
+- 정부/제도/날씨성 콘텐츠는 최종 1~2개 이하로 제한
+- 캠퍼 후기와 캠지기 운영 사례 기반 인사이트를 최소 4개 포함
+- 마케팅·리뷰관리·예약률·운영 트렌드 인사이트를 2개 이상 포함
 - 후기 요약에는 칭찬이나 감상 대신 시설·동선·응대·청결 등 적용 포인트를 명시
 - 단순 소개가 아니라 운영자가 이번 주에 실행할 행동을 설명할 수 있는 콘텐츠만 선택
 
@@ -350,9 +351,9 @@ _STRONG_POSITIVE = [
 
 # 소스별 보너스
 _SOURCE_BONUS = {
-    "네이버 뉴스": 3.0,  # 뉴스 기사는 광고일 확률 낮음
-    "구글 뉴스": 2.0,
-    "네이버 블로그": 0.0,  # 블로그는 기본
+    "네이버 뉴스": 0.5,
+    "구글 뉴스": 0.5,
+    "네이버 블로그": 1.0,
 }
 
 
@@ -414,6 +415,9 @@ def _is_hard_rejected(item: ContentItem) -> bool:
     ]
     has_operator_context = any(w in combined for w in operator_context_words)
     has_review_insight = _has_review_insight(item)
+
+    if _is_low_value_public_notice(item):
+        return True
 
     local_region_terms = [
         "경상북도", "경상남도", "전라북도", "전라남도", "충청북도", "충청남도",
@@ -574,6 +578,10 @@ def _rule_based_score(item: ContentItem) -> float:
 
     # 소스 보너스
     score += _SOURCE_BONUS.get(item.source, 0.0)
+    if item.source.startswith("카페:"):
+        score += 1.5
+    if _source_group(item) == "뉴스/제도":
+        score -= 1.0
 
     # 운영자 대상 글 보너스
     owner_words = ["사장님", "대표님", "운영자", "캠지기", "관리인"]
@@ -652,28 +660,58 @@ def _source_group(item: ContentItem) -> str:
     """소스 상한 적용을 위한 출처 그룹명."""
     if item.source.startswith("카페:"):
         return "카페"
+    if item.source in ["네이버 뉴스", "구글 뉴스", "정부지원", "제도/안전"]:
+        return "뉴스/제도"
     return item.source
+
+
+def _is_low_value_public_notice(item: ContentItem) -> bool:
+    """정부/날씨 단신처럼 운영 인사이트가 약한 공지성 소재를 제거."""
+    source = _source_group(item)
+    if source != "뉴스/제도":
+        return False
+    title = (item.title or "").lower()
+    combined = f"{item.title} {item.description}".lower()
+    weather_terms = [
+        "오늘의 날씨", "날씨]", "호우 대비", "호우특보", "집중호우 대비",
+        "비상 1단계", "재대본", "대비태세", "소나기", "체감온도",
+        "폭우 예보", "많은 비", "기상청", "행정안전부",
+    ]
+    local_admin_terms = [
+        "브리핑", "24시", "시장", "군수", "읍면동", "시민 목소리",
+        "의회", "훈련", "을지연습", "관광동선", "국가유산",
+    ]
+    useful_terms = [
+        "예약 취소", "환불", "오버부킹", "배상", "위생", "원산지",
+        "소비자 평가", "만족도", "리뷰", "예약 플랫폼", "시장", "동향", "트렌드",
+    ]
+    if any(term in combined for term in useful_terms):
+        return False
+    if any(term in title or term in combined for term in weather_terms + local_admin_terms):
+        return True
+    return False
 
 
 def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int) -> List[ContentItem]:
     """특정 출처/카테고리가 과도하게 몰리지 않도록 최종 선별 목록을 보정."""
     source_limits = {
-        "지식iN": 2,
-        "카페": 2,
-        "구글 뉴스": 3,
-        "네이버 뉴스": 4,
+        "지식iN": 1,
+        "카페": 5,
         "네이버 블로그": 4,
-        "정부지원": 3,
+        "뉴스/제도": 2,
     }
     default_category_limit = 3
     category_limits = {
-        "후기인사이트": 3,
-        "운영노하우": 4,
-        "시즌운영": 4,
-        "시설안전": 3,
-        "물놀이안전": 2,
-        "위생관리": 3,
-        "리스크관리": 4,
+        "후기인사이트": 4,
+        "운영노하우": 3,
+        "시즌운영": 2,
+        "시설안전": 2,
+        "물놀이안전": 1,
+        "위생관리": 2,
+        "리스크관리": 2,
+        "산업동향": 2,
+        "매출전략": 2,
+        "고객관리": 2,
     }
 
     selected = []
@@ -907,4 +945,16 @@ def prepare_replacement_candidates(
 
     candidates = _deduplicate_similar(candidates)
     candidates.sort(key=lambda item: item.score, reverse=True)
-    return candidates[:limit]
+
+    selected = []
+    source_count = {}
+    candidate_source_limits = {"뉴스/제도": 3, "지식iN": 2, "카페": 14, "네이버 블로그": 10}
+    for item in candidates:
+        source = _source_group(item)
+        if source_count.get(source, 0) >= candidate_source_limits.get(source, 6):
+            continue
+        selected.append(item)
+        source_count[source] = source_count.get(source, 0) + 1
+        if len(selected) >= limit:
+            break
+    return selected
