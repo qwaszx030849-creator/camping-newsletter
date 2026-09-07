@@ -8,24 +8,43 @@ interface Props {
     newsletterId: string;
 }
 
+type ReviewItem = NewsletterItem & { originalSlot: number };
+
 interface ReplacementLog {
+    type: "replace";
     slot: number;
     removed: NewsletterItem;
     replacement: NewsletterItem;
 }
 
+interface DeletionLog {
+    type: "delete";
+    slot: number;
+    removed: NewsletterItem;
+}
+
+type ChangeLog = ReplacementLog | DeletionLog;
+
+const stripReviewMeta = ({ originalSlot: _originalSlot, ...item }: ReviewItem): NewsletterItem => item;
+
 export default function ReviewableNewsletter({ newsletter, newsletterId }: Props) {
-    const [items, setItems] = useState<NewsletterItem[]>(newsletter.items);
+    const [items, setItems] = useState<ReviewItem[]>(
+        newsletter.items.map((item, index) => ({ ...item, originalSlot: index + 1 }))
+    );
     const [candidateCursor, setCandidateCursor] = useState(0);
     const [excluded, setExcluded] = useState<number[]>([]);
-    const [changes, setChanges] = useState<ReplacementLog[]>([]);
+    const [deleted, setDeleted] = useState<number[]>([]);
+    const [changes, setChanges] = useState<ChangeLog[]>([]);
     const [copied, setCopied] = useState("");
 
     const candidates = newsletter.review_candidates || [];
     const usedUrls = useMemo(() => new Set(items.map((item) => item.url)), [items]);
 
     const fileName = `newsletter_${newsletter.week_info.year}_${String(newsletter.week_info.month).padStart(2, "0")}_week${newsletter.week_info.week_of_month}.json`;
-    const replacementCommand = `python review_replacements.py --file output/${fileName} --exclude ${excluded.join(" ")}`;
+    const commandParts = [`python review_replacements.py --file output/${fileName}`];
+    if (excluded.length) commandParts.push(`--exclude ${excluded.join(" ")}`);
+    if (deleted.length) commandParts.push(`--delete ${deleted.join(" ")}`);
+    const reviewCommand = commandParts.join(" ");
 
     const findNextCandidate = (cursor: number) => {
         for (let i = cursor; i < candidates.length; i += 1) {
@@ -36,45 +55,66 @@ export default function ReviewableNewsletter({ newsletter, newsletterId }: Props
         return { candidate: null, nextCursor: cursor };
     };
 
+    const deleteItem = (index: number) => {
+        const removed = items[index];
+        if (!removed) return;
+        setItems((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
+        setDeleted((prev) => [...prev, removed.originalSlot]);
+        setChanges((prev) => [...prev, { type: "delete", slot: removed.originalSlot, removed: stripReviewMeta(removed) }]);
+    };
+
     const replaceItem = (index: number) => {
         const { candidate, nextCursor } = findNextCandidate(candidateCursor);
         if (!candidate) {
-            setCopied("대체 후보가 더 없습니다.");
+            deleteItem(index);
+            setCopied("대체 후보가 없어 삭제로 제외했습니다.");
             setTimeout(() => setCopied(""), 1800);
             return;
         }
 
         const removed = items[index];
         const nextItems = [...items];
-        nextItems[index] = candidate;
+        nextItems[index] = { ...candidate, originalSlot: removed.originalSlot };
         setItems(nextItems);
         setCandidateCursor(nextCursor);
-        setExcluded((prev) => [...prev, index + 1]);
-        setChanges((prev) => [...prev, { slot: index + 1, removed, replacement: candidate }]);
+        setExcluded((prev) => [...prev, removed.originalSlot]);
+        setChanges((prev) => [
+            ...prev,
+            { type: "replace", slot: removed.originalSlot, removed: stripReviewMeta(removed), replacement: candidate },
+        ]);
     };
 
     const copyCommand = async () => {
-        if (excluded.length === 0) {
-            setCopied("먼저 제외할 기사를 X로 선택하세요.");
+        if (excluded.length === 0 && deleted.length === 0) {
+            setCopied("먼저 교체 또는 삭제할 기사를 선택하세요.");
             setTimeout(() => setCopied(""), 1800);
             return;
         }
-        await navigator.clipboard.writeText(replacementCommand);
-        setCopied("교체 명령을 복사했습니다.");
+        await navigator.clipboard.writeText(reviewCommand);
+        setCopied("검토 명령을 복사했습니다.");
         setTimeout(() => setCopied(""), 1800);
     };
 
     const copyReviewedJson = async () => {
         const reviewed = {
             ...newsletter,
-            items,
+            items: items.map(stripReviewMeta),
             items_count: items.length,
-            review_status: changes.length ? "preview_replaced" : newsletter.review_status || "draft",
-            review_changes_preview: changes.map((change) => ({
-                slot: change.slot,
-                removed: { title: change.removed.title, url: change.removed.url },
-                replacement: { title: change.replacement.title, url: change.replacement.url },
-            })),
+            review_status: changes.length ? "preview_edited" : newsletter.review_status || "draft",
+            review_changes_preview: changes.map((change) =>
+                change.type === "delete"
+                    ? {
+                          type: change.type,
+                          slot: change.slot,
+                          removed: { title: change.removed.title, url: change.removed.url },
+                      }
+                    : {
+                          type: change.type,
+                          slot: change.slot,
+                          removed: { title: change.removed.title, url: change.removed.url },
+                          replacement: { title: change.replacement.title, url: change.replacement.url },
+                      }
+            ),
         };
         await navigator.clipboard.writeText(JSON.stringify(reviewed, null, 2));
         setCopied("검토본 JSON을 복사했습니다.");
@@ -86,11 +126,11 @@ export default function ReviewableNewsletter({ newsletter, newsletterId }: Props
             <div className="review-toolbar">
                 <div>
                     <strong>검토 모드</strong>
-                    <span>{candidates.length ? `대체 후보 ${candidates.length}개` : "이 발행물에는 대체 후보가 없습니다."}</span>
+                    <span>현재 {items.length}개 · 대체 후보 {candidates.length}개 · 삭제는 후보 없이 바로 제외</span>
                 </div>
                 <div className="review-actions">
-                    <button type="button" onClick={copyCommand} disabled={excluded.length === 0}>
-                        교체 명령 복사
+                    <button type="button" onClick={copyCommand} disabled={excluded.length === 0 && deleted.length === 0}>
+                        검토 명령 복사
                     </button>
                     <button type="button" onClick={copyReviewedJson}>
                         검토본 JSON 복사
@@ -100,16 +140,18 @@ export default function ReviewableNewsletter({ newsletter, newsletterId }: Props
 
             {changes.length > 0 ? (
                 <div className="change-log">
-                    {changes.map((change) => (
-                        <p key={`${change.slot}-${change.replacement.url}`}>
-                            {change.slot}번 교체: {change.removed.title} → {change.replacement.title}
+                    {changes.map((change, index) => (
+                        <p key={`${change.type}-${change.slot}-${index}`}>
+                            {change.type === "delete"
+                                ? `${change.slot}번 삭제: ${change.removed.title}`
+                                : `${change.slot}번 교체: ${change.removed.title} → ${change.replacement.title}`}
                         </p>
                     ))}
                 </div>
             ) : null}
 
-            {excluded.length > 0 ? (
-                <pre className="review-command">{replacementCommand}</pre>
+            {excluded.length > 0 || deleted.length > 0 ? (
+                <pre className="review-command">{reviewCommand}</pre>
             ) : null}
 
             <div className="item-list">
@@ -119,15 +161,24 @@ export default function ReviewableNewsletter({ newsletter, newsletterId }: Props
                             <span className={`item-category ${item.category}`}>
                                 {item.category || "기타"}
                             </span>
-                            <button
-                                type="button"
-                                className="reject-button"
-                                onClick={() => replaceItem(index)}
-                                title="이 기사를 제외하고 후보 기사로 대체"
-                                disabled={!candidates.length}
-                            >
-                                X
-                            </button>
+                            <div className="item-review-actions">
+                                <button
+                                    type="button"
+                                    className="replace-button"
+                                    onClick={() => replaceItem(index)}
+                                    title="이 기사를 제외하고 후보 기사로 대체"
+                                >
+                                    교체
+                                </button>
+                                <button
+                                    type="button"
+                                    className="delete-button"
+                                    onClick={() => deleteItem(index)}
+                                    title="이 기사를 대체 없이 삭제"
+                                >
+                                    삭제
+                                </button>
+                            </div>
                         </div>
                         <h3 className="item-title">{item.title}</h3>
                         {item.summary ? (
@@ -180,14 +231,16 @@ export default function ReviewableNewsletter({ newsletter, newsletterId }: Props
                     font-size: 0.85rem;
                 }
 
-                .review-actions {
+                .review-actions,
+                .item-review-actions {
                     display: flex;
                     gap: 0.5rem;
                     flex-wrap: wrap;
                 }
 
                 .review-actions button,
-                .reject-button {
+                .replace-button,
+                .delete-button {
                     border: 1px solid var(--card-border);
                     border-radius: 6px;
                     background: #111827;
@@ -200,8 +253,25 @@ export default function ReviewableNewsletter({ newsletter, newsletterId }: Props
                     padding: 0.65rem 0.85rem;
                 }
 
-                .review-actions button:disabled,
-                .reject-button:disabled {
+                .replace-button,
+                .delete-button {
+                    height: 2rem;
+                    min-width: 3rem;
+                    padding: 0 0.55rem;
+                    font-size: 0.75rem;
+                }
+
+                .replace-button {
+                    color: #bfdbfe;
+                    border-color: rgba(96, 165, 250, 0.55);
+                }
+
+                .delete-button {
+                    color: #fecaca;
+                    border-color: rgba(248, 113, 113, 0.45);
+                }
+
+                .review-actions button:disabled {
                     opacity: 0.45;
                     cursor: not-allowed;
                 }
@@ -213,14 +283,12 @@ export default function ReviewableNewsletter({ newsletter, newsletterId }: Props
                     gap: 0.75rem;
                 }
 
-                .reject-button {
-                    width: 2rem;
-                    height: 2rem;
-                    color: #fecaca;
-                    border-color: rgba(248, 113, 113, 0.45);
+                .replace-button:hover {
+                    background: #1d4ed8;
+                    color: white;
                 }
 
-                .reject-button:hover:not(:disabled) {
+                .delete-button:hover {
                     background: #7f1d1d;
                     color: white;
                 }
