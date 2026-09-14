@@ -38,20 +38,21 @@ def _load_previous_items() -> Tuple[Set[str], List[ContentItem]]:
         try:
             with open(json_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                for item in data.get("items", []):
-                    url = item.get("url", "")
-                    if url:
-                        used_urls.add(url)
-                    previous_items.append(
-                        ContentItem(
-                            title=item.get("title", ""),
-                            url=url,
-                            source=item.get("source", ""),
-                            description=item.get("description") or item.get("summary", ""),
-                            summary=item.get("summary", ""),
-                            category=item.get("category", ""),
+                for section_name in ("items", "review_candidates"):
+                    for item in data.get(section_name, []):
+                        url = item.get("url", "")
+                        if url:
+                            used_urls.add(url)
+                        previous_items.append(
+                            ContentItem(
+                                title=item.get("title", ""),
+                                url=url,
+                                source=item.get("source", ""),
+                                description=item.get("description") or item.get("summary", ""),
+                                summary=item.get("summary", ""),
+                                category=item.get("category", ""),
+                            )
                         )
-                    )
         except (json.JSONDecodeError, Exception):
             continue
 
