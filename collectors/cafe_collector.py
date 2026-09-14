@@ -130,6 +130,10 @@ class NaverCafeCollector(BaseCollector):
                     title = self._clean_text(item.get("title", ""))
                     description = self._clean_text(item.get("description", ""))
                     combined = f"{title} {description}".lower()
+                    competitor_promo_terms = ["그래가", "그레가", "graega", "협찬", "체험단", "제공받아", "원고료"]
+                    if any(term.lower() in combined for term in competitor_promo_terms):
+                        continue
+
                     review_insight_score = sum(
                         1 for signal in self.REVIEW_INSIGHT_SIGNALS
                         if signal.lower() in combined

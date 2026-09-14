@@ -171,6 +171,10 @@ class NaverBlogCollector(BaseCollector):
                     if not is_camping_related:
                         continue
                     
+                    competitor_promo_terms = ["그래가", "그레가", "graega", "협찬", "체험단", "제공받아", "원고료"]
+                    if any(term.lower() in combined_lower for term in competitor_promo_terms):
+                        continue
+
                     # 2단계: 운영자 관점 점수 계산
                     operator_score = sum(1 for w in self.OPERATOR_SIGNALS if w in combined_lower)
                     visitor_score = sum(1 for w in self.VISITOR_SIGNALS if w in combined_lower)

@@ -286,7 +286,7 @@ _HARD_REJECT_TEXT = [
     "광고 대행사", "마케팅 대행사", "실행사만의 노하우", "파트너가 필요",
     "홈페이지제작", "예약률 30% 높이는 비밀", "키즈카페 인기 아이템",
     "요즘 캠핑장, 키즈카페, 펜션 사장님", "예약 꿀팁", "산으로 간 니모",
-    "협찬", "체험단", "제휴마케팅", "커미션을 지급", "구매링크",
+    "그래가", "그레가", "graega", "협찬", "체험단", "제휴마케팅", "커미션을 지급", "구매링크",
     "국성부동산매니지먼트", "원스톱", "더 늦기 전에 시작하세요",
     "무료 진단", "무료 컨설팅", "관리 전:", "관리 후:",
     "자부담", "신청서 제출", "모집합니다", "마케팅전략팀",
@@ -440,6 +440,12 @@ def _is_hard_rejected(item: ContentItem) -> bool:
         "캠핑장의 몰락", "몰락",
     ]
     if any(w.lower() in combined for w in sensational_operator_terms):
+        return True
+
+    competitor_promo_terms = [
+        "그래가", "그레가", "graega", "협찬", "체험단", "제공받아", "원고료",
+    ]
+    if any(w.lower() in combined for w in competitor_promo_terms):
         return True
 
     if item.published_date:
@@ -922,7 +928,7 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
 def prepare_replacement_candidates(
     items: List[ContentItem],
     selected: List[ContentItem],
-    limit: int = 30,
+    limit: int = 60,
 ) -> List[ContentItem]:
     """Return extra review candidates that can refill X-ed newsletter slots."""
     selected_urls = {item.url for item in selected if item.url}
@@ -931,9 +937,9 @@ def prepare_replacement_candidates(
     for item in items:
         if not item.url or item.url in selected_urls:
             continue
-        if _is_hard_rejected(item):
+        if _is_hard_rejected(item) or _is_similar_topic(item, selected):
             continue
-        if not item.category or item.category in ["釉붾줈洹?", "而ㅻ??덊떚"]:
+        if not item.category or item.category in ["釉붾줈洹?", "而ㅻ??덊떚", "블로그", "커뮤니티"]:
             item.category = _classify_category(item)
         item.score = _rule_based_score(item)
         if item.score <= -5.0:
@@ -948,7 +954,7 @@ def prepare_replacement_candidates(
 
     selected = []
     source_count = {}
-    candidate_source_limits = {"뉴스/제도": 3, "지식iN": 2, "카페": 14, "네이버 블로그": 10}
+    candidate_source_limits = {"뉴스/제도": 6, "지식iN": 4, "카페": 28, "네이버 블로그": 20}
     for item in candidates:
         source = _source_group(item)
         if source_count.get(source, 0) >= candidate_source_limits.get(source, 6):

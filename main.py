@@ -7,7 +7,7 @@ import json
 import os
 import glob
 from datetime import datetime
-from typing import List, Set
+from typing import List, Set, Tuple
 
 from collectors.base import ContentItem
 from collectors.google_news import GoogleNewsCollector
@@ -16,14 +16,15 @@ from collectors.naver_news import NaverNewsCollector
 from collectors.cafe_collector import NaverCafeCollector
 from collectors.government_support import GovernmentSupportCollector
 from collectors.kin_collector import NaverKinCollector
-from ai_filter import filter_content, prepare_replacement_candidates
+from ai_filter import filter_content, prepare_replacement_candidates, _extract_keywords
 from newsletter_generator import save_newsletter, get_week_info
 from kakao_sender import send_newsletter
 
 
-def _load_previous_urls() -> Set[str]:
-    """이전 뉴스레터에서 사용된 URL 목록을 로드하여 중복 방지"""
-    used_urls = set()
+def _load_previous_items() -> Tuple[Set[str], List[ContentItem]]:
+    """이전 뉴스레터에서 사용된 URL과 주제 키워드를 로드하여 반복 소재를 방지."""
+    used_urls: Set[str] = set()
+    previous_items: List[ContentItem] = []
     archive_dir = os.path.join(os.path.dirname(__file__), "archive")
     current_week = get_week_info()
     current_filename = (
@@ -41,19 +42,63 @@ def _load_previous_urls() -> Set[str]:
                     url = item.get("url", "")
                     if url:
                         used_urls.add(url)
+                    previous_items.append(
+                        ContentItem(
+                            title=item.get("title", ""),
+                            url=url,
+                            source=item.get("source", ""),
+                            description=item.get("description") or item.get("summary", ""),
+                            summary=item.get("summary", ""),
+                            category=item.get("category", ""),
+                        )
+                    )
         except (json.JSONDecodeError, Exception):
             continue
 
-    print(f"📋 이전 뉴스레터에서 {len(used_urls)}개 URL 중복 방지 목록 로드")
-    return used_urls
+    print(f"📋 이전 뉴스레터에서 {len(used_urls)}개 URL, {len(previous_items)}개 주제 중복 방지 목록 로드")
+    return used_urls, previous_items
 
 
-def _remove_previously_used(items: List[ContentItem], used_urls: Set[str]) -> List[ContentItem]:
-    """이전 뉴스레터에 이미 사용된 URL 제거"""
-    new_items = [item for item in items if item.url not in used_urls]
-    removed = len(items) - len(new_items)
-    if removed > 0:
-        print(f"   🔄 이전 뉴스레터 중복 {removed}개 제거")
+def _topic_keywords(title: str) -> Set[str]:
+    """과거 발행 반복 판정용 제목 키워드. 일반 후기어는 제외해 다른 캠핑장 후기는 살린다."""
+    generic_words = {
+        "캠핑장", "캠핑", "글램핑", "오토캠핑", "야영장", "후기", "안내",
+        "운영", "사례", "리뷰", "추천", "좋은", "아이와", "가족", "이번",
+    }
+    return {word for word in _extract_keywords(title) if word not in generic_words and len(word) >= 3}
+
+
+def _is_previously_used_topic(item: ContentItem, previous_items: List[ContentItem]) -> bool:
+    """URL이 달라도 과거 발행과 제목 주제가 거의 같으면 제외."""
+    keywords = _topic_keywords(item.title)
+    if len(keywords) <= 2:
+        return False
+    for previous in previous_items:
+        previous_keywords = _topic_keywords(previous.title)
+        if len(previous_keywords) <= 2:
+            continue
+        overlap = len(keywords & previous_keywords)
+        smaller = min(len(keywords), len(previous_keywords))
+        if overlap >= 3 and smaller and overlap / smaller >= 0.75:
+            return True
+    return False
+
+
+def _remove_previously_used(items: List[ContentItem], used_urls: Set[str], previous_items: List[ContentItem]) -> List[ContentItem]:
+    """이전 뉴스레터에 이미 사용된 URL 또는 반복 주제 제거."""
+    new_items = []
+    removed_url = 0
+    removed_topic = 0
+    for item in items:
+        if item.url in used_urls:
+            removed_url += 1
+            continue
+        if _is_previously_used_topic(item, previous_items):
+            removed_topic += 1
+            continue
+        new_items.append(item)
+    if removed_url or removed_topic:
+        print(f"   🔄 이전 뉴스레터 중복 URL {removed_url}개, 반복 주제 {removed_topic}개 제거")
     return new_items
 
 
@@ -210,8 +255,8 @@ def collect_all_content() -> List[ContentItem]:
 
     # 후처리
     unique_items = _remove_duplicate_bloggers(all_items)
-    used_urls = _load_previous_urls()
-    fresh_items = _remove_previously_used(unique_items, used_urls)
+    used_urls, previous_items = _load_previous_items()
+    fresh_items = _remove_previously_used(unique_items, used_urls, previous_items)
 
     print(f"\n📊 수집 완료: {len(all_items)}개 → 중복 제거 {len(unique_items)}개 → 최종 {len(fresh_items)}개")
     return fresh_items
