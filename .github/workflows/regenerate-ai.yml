@@ -10,7 +10,7 @@ permissions:
   contents: write
 concurrency:
   group: newsletter-ai-draft
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   regenerate:
     runs-on: ubuntu-latest
@@ -29,6 +29,13 @@ jobs:
           CLAUDE_PRIMARY_MODEL: ${{ vars.CLAUDE_PRIMARY_MODEL || 'claude-sonnet-4-6' }}
           CLAUDE_FALLBACK_MODEL: ${{ vars.CLAUDE_FALLBACK_MODEL || 'claude-haiku-4-5-20251001' }}
         run: python -u review/regenerate_ai.py
+      - name: Retain selection diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-selection-diagnostics
+          path: review/ai_selection_response.txt
+          retention-days: 3
       - name: Save review draft only
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"

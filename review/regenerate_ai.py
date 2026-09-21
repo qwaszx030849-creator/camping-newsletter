@@ -46,13 +46,13 @@ response = _call_claude(prompt)
 (root / "review/ai_selection_response.txt").write_text(response, encoding="utf-8")
 def selection_rows(text):
     decoder = json.JSONDecoder()
-    parsed = None
+    parsed_values = []
     for position, character in enumerate(text):
         if character not in "[{":
             continue
         try:
             parsed, _ = decoder.raw_decode(text[position:])
-            break
+            parsed_values.append(parsed)
         except json.JSONDecodeError:
             continue
     def rows(value):
@@ -67,7 +67,7 @@ def selection_rows(text):
                 return [value]
             return [row for child in value.values() if isinstance(child, (list, dict)) for row in rows(child)]
         return []
-    return rows(parsed)
+    return max((rows(value) for value in parsed_values), key=len, default=[])
 selection = selection_rows(response)
 chosen = []
 reasons = {}
