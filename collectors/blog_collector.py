@@ -141,7 +141,7 @@ class NaverBlogCollector(BaseCollector):
                 
                 params = {
                     "query": search_query,
-                    "display": max_items_per_keyword * 5,
+                    "display": min(100, max_items_per_keyword * 5),
                     "start": 1,
                     "sort": "date"
                 }
@@ -179,7 +179,7 @@ class NaverBlogCollector(BaseCollector):
                     operator_score = sum(1 for w in self.OPERATOR_SIGNALS if w in combined_lower)
                     visitor_score = sum(1 for w in self.VISITOR_SIGNALS if w in combined_lower)
                     review_insight_score = sum(1 for w in self.REVIEW_INSIGHT_SIGNALS if w in combined_lower)
-                    has_review_insight = review_insight_score >= 2
+                    has_review_insight = review_insight_score >= 1
                     
                     # 운영자 신호가 약하더라도 후기 안에 운영 포인트가 있으면 후보로 남김
                     if operator_score < 2 and not has_review_insight:

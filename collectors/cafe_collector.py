@@ -98,7 +98,7 @@ class NaverCafeCollector(BaseCollector):
             "캠핑장 시설",
             "캠핑장 마케팅",
             "캠지기 운영",
-            "야영장 인허가",
+            "캠핑장 체험 운영",
             "캠핑장 환불",
         ]
         
@@ -138,7 +138,7 @@ class NaverCafeCollector(BaseCollector):
                         1 for signal in self.REVIEW_INSIGHT_SIGNALS
                         if signal.lower() in combined
                     )
-                    has_review_insight = review_insight_score >= 2
+                    has_review_insight = review_insight_score >= 1
 
                     if any(signal.lower() in combined for signal in self.EXCLUDE_SIGNALS) and not has_review_insight:
                         continue

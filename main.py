@@ -7,6 +7,7 @@ import json
 import os
 import glob
 from datetime import datetime
+from editorial_policy import TARGET_ITEMS, TARGET_CANDIDATES, review_queries, same_article, canonical_url
 from typing import List, Set, Tuple
 
 from collectors.base import ContentItem
@@ -42,7 +43,7 @@ def _load_previous_items() -> Tuple[Set[str], List[ContentItem]]:
                     for item in data.get(section_name, []):
                         url = item.get("url", "")
                         if url:
-                            used_urls.add(url)
+                            used_urls.add(canonical_url(url))
                         previous_items.append(
                             ContentItem(
                                 title=item.get("title", ""),
@@ -71,18 +72,8 @@ def _topic_keywords(title: str) -> Set[str]:
 
 def _is_previously_used_topic(item: ContentItem, previous_items: List[ContentItem]) -> bool:
     """URL이 달라도 과거 발행과 제목 주제가 거의 같으면 제외."""
-    keywords = _topic_keywords(item.title)
-    if len(keywords) <= 2:
-        return False
-    for previous in previous_items:
-        previous_keywords = _topic_keywords(previous.title)
-        if len(previous_keywords) <= 2:
-            continue
-        overlap = len(keywords & previous_keywords)
-        smaller = min(len(keywords), len(previous_keywords))
-        if overlap >= 3 and smaller and overlap / smaller >= 0.75:
-            return True
-    return False
+    return any(same_article(item, previous) for previous in previous_items)
+
 
 
 def _remove_previously_used(items: List[ContentItem], used_urls: Set[str], previous_items: List[ContentItem]) -> List[ContentItem]:
@@ -91,7 +82,7 @@ def _remove_previously_used(items: List[ContentItem], used_urls: Set[str], previ
     removed_url = 0
     removed_topic = 0
     for item in items:
-        if item.url in used_urls:
+        if canonical_url(item.url) in used_urls:
             removed_url += 1
             continue
         if _is_previously_used_topic(item, previous_items):
@@ -140,25 +131,8 @@ def collect_all_content() -> List[ContentItem]:
     # ========================================
     print("\n[1/6] 네이버 블로그 수집...")
     try:
-        blog_keywords = [
-            "캠핑장 운영 매출 노하우",
-            "오토캠핑장 운영 성공 사례",
-            "캠핑장 사장님 예약률 높이는 방법",
-            "캠핑장 리뷰 관리 네이버플레이스",
-            "캠핑장 재방문 후기 청결 친절",
-            "캠핑장 수영장 후기 아이 체험",
-            "캠핑장 시설 개선 사이트 조성",
-            "캠핑장 비수기 운영 전략",
-            "오토캠핑장 성수기 준비",
-            "캠핑장 사이트 데크 조성",
-        ]
-        if datetime.now().month in (6, 7, 8, 9):
-            blog_keywords.extend([
-                "캠핑장 여름 운영 수영장 후기",
-                "캠핑장 가을 성수기 예약 전략",
-                "캠핑장 우천 환불 운영 사례",
-            ])
-        blog_items = NaverBlogCollector().collect(blog_keywords)
+        blog_keywords = review_queries(datetime.now().month)
+        blog_items = NaverBlogCollector().collect(blog_keywords, max_items_per_keyword=20)
         all_items.extend(blog_items)
         print(f"   -> {len(blog_items)}개 수집")
     except Exception as e:
@@ -171,7 +145,7 @@ def collect_all_content() -> List[ContentItem]:
     try:
         news_keywords = [
             "캠핑 산업 동향 시장",
-            "캠핑장 예약 플랫폼 시장",
+            "캠핑장 재방문 만족도 조사",
             "캠핑장 이용객 만족도 리뷰",
             "숙박업 데이터 마케팅 리뷰 관리",
             "오토캠핑장 운영 트렌드",
@@ -195,7 +169,7 @@ def collect_all_content() -> List[ContentItem]:
         google_keywords = [
             "캠핑장 산업 동향 2026",
             "오토캠핑장 운영 트렌드",
-            "캠핑장 예약 플랫폼 시장",
+            "캠핑장 이용객 설문 통계",
             "캠핑장 고객 리뷰 만족도",
             "숙박업 데이터 기반 마케팅",
         ]
@@ -210,52 +184,15 @@ def collect_all_content() -> List[ContentItem]:
     # ========================================
     print("\n[4/6] 네이버 카페 수집...")
     try:
-        cafe_keywords = [
-            "캠핑장 운영 노하우 캠지기",
-            "오토캠핑장 사장님 운영 팁",
-            "캠핑장 예약 관리 성수기",
-            "캠핑장 사이트 관리 정비",
-            "캠핑장 재방문 후기 친절 청결",
-            "캠핑장 수영장 후기 아이 체험",
-            "캠핑장 환불 응대 후기",
-            "캠지기 평일 운영 일상",
-        ]
-        cafe_items = NaverCafeCollector().collect(cafe_keywords)
+        cafe_keywords = review_queries(datetime.now().month)
+        cafe_items = NaverCafeCollector().collect(cafe_keywords, max_items_per_keyword=50)
         all_items.extend(cafe_items)
         print(f"   -> {len(cafe_items)}개 수집")
     except Exception as e:
         print(f"   Error: {e}")
 
-    # ========================================
-    # 5. 정부 지원사업 - 보조금/공모
-    # ========================================
-    print("\n[5/6] 정부 지원사업 수집...")
-    try:
-        gov_items = GovernmentSupportCollector().collect()[:2]
-        all_items.extend(gov_items)
-        print(f"   -> {len(gov_items)}개 수집 (전국 공통 참고용만 제한 반영)")
-    except Exception as e:
-        print(f"   Error: {e}")
-
-    # ========================================
-    # 6. 지식iN - 운영자 Q&A
-    # ========================================
-    print("\n[6/6] 지식iN 수집...")
-    try:
-        kin_keywords = [
-            "캠핑장 운영 방법 허가",
-            "오토캠핑장 인허가 절차",
-            "캠핑장 매출 수익",
-            "야영장 등록 신고",
-        ]
-        kin_items = NaverKinCollector().collect(kin_keywords)
-        all_items.extend(kin_items)
-        print(f"   -> {len(kin_items)}개 수집")
-    except Exception as e:
-        print(f"   Error: {e}")
-
     # 후처리
-    unique_items = _remove_duplicate_bloggers(all_items)
+    unique_items = list({canonical_url(item.url): item for item in all_items if item.url}.values())
     used_urls, previous_items = _load_previous_items()
     fresh_items = _remove_previously_used(unique_items, used_urls, previous_items)
 
@@ -263,13 +200,27 @@ def collect_all_content() -> List[ContentItem]:
     return fresh_items
 
 
-def run_newsletter_pipeline(test_mode: bool = True, skip_send: bool = False):
+def run_newsletter_pipeline(test_mode: bool = True, skip_send: bool = False, force: bool = False):
     """뉴스레터 파이프라인 실행"""
     start_time = datetime.now()
     print("\n" + "=" * 60)
     print("  캠핑장 뉴스레터 자동화 시스템")
     print("=" * 60)
     print(f"시작 시간: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+    week_info = get_week_info()
+    current_path = os.path.join(os.path.dirname(__file__), "output",
+        f"newsletter_{week_info['year']}_{week_info['month']:02d}_week{week_info['week_of_month']}.json")
+    if os.path.exists(current_path) and not force:
+        with open(current_path, encoding="utf-8") as handle:
+            existing = json.load(handle)
+        if existing.get("review_status") in ("reviewed", "approved", "published") or (
+            len(existing.get("items", [])) == TARGET_ITEMS
+            and len(existing.get("review_candidates", [])) >= TARGET_CANDIDATES
+            and existing.get("quality", {}).get("editorial_version") == 2
+        ):
+            print("Existing reviewed/complete edition preserved; use --force to regenerate.")
+            return
 
     # 1단계: 콘텐츠 수집
     all_items = collect_all_content()
@@ -283,7 +234,7 @@ def run_newsletter_pipeline(test_mode: bool = True, skip_send: bool = False):
     print("  AI 필터링 + 요약 생성...")
     print("=" * 50)
 
-    filtered_items = filter_content(all_items)
+    filtered_items = filter_content(all_items, count=TARGET_ITEMS)
     replacement_candidates = prepare_replacement_candidates(all_items, filtered_items)
     print(f"총 {len(all_items)}개 중 {len(filtered_items)}개 선별")
 
@@ -332,6 +283,7 @@ def main():
     parser = argparse.ArgumentParser(description="캠핑장 뉴스레터 자동화")
     parser.add_argument("--test-mode", action="store_true", help="테스트 모드 (나에게만 발송)")
     parser.add_argument("--skip-send", action="store_true", help="카카오톡 발송 건너뛰기")
+    parser.add_argument("--force", action="store_true", help="Regenerate the current edition explicitly")
     parser.add_argument("--collect-only", action="store_true", help="콘텐츠 수집만 실행")
 
     args = parser.parse_args()
@@ -342,7 +294,8 @@ def main():
     else:
         run_newsletter_pipeline(
             test_mode=args.test_mode or True,
-            skip_send=args.skip_send
+            skip_send=args.skip_send,
+            force=args.force
         )
 
 

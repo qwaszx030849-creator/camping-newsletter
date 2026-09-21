@@ -1,6 +1,15 @@
 name: Weekly Newsletter
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'main.py'
+      - 'ai_filter.py'
+      - 'editorial_policy.py'
+      - 'collectors/**'
+      - 'newsletter_generator.py'
+      - 'tests/**'
   schedule:
     # 최근 예약 실행이 3시간 30분~5시간 지연되어 목표 발행 시각보다 일찍 시작함.
     # GitHub 지연이 반복되어도 월요일 오전 중 한 번은 완료되도록 백업 실행을 둠.
@@ -36,6 +45,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Verify editorial rules
+        run: python -m unittest discover -s tests -v
+
       - name: Run newsletter pipeline
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -47,19 +59,22 @@ jobs:
         run: |
           python main.py --skip-send
 
-      - name: Verify newsletter file was produced this run
+      - name: Verify current edition and report quality
         run: |
           python - <<'PY'
-          import glob, os, sys, time
-          fresh = [f for f in glob.glob('output/newsletter_*.json')
-                   if time.time() - os.path.getmtime(f) < 900]
-          if not fresh:
-              print('::error::No fresh newsletter JSON in output/ (silent failure suspected).')
-              print('Existing files:')
-              for f in sorted(glob.glob('output/newsletter_*.json')):
-                  print(' ', f, '(mtime', time.ctime(os.path.getmtime(f)), ')')
-              sys.exit(1)
-          print('OK — fresh newsletter file(s):', fresh)
+          import json
+          from pathlib import Path
+          from newsletter_generator import get_week_info
+          w = get_week_info()
+          path = Path("output") / f"newsletter_{w['year']}_{w['month']:02d}_week{w['week_of_month']}.json"
+          data = json.loads(path.read_text(encoding="utf-8"))
+          assert data["items_count"] == len(data["items"])
+          assert len({item["url"] for item in data["items"]}) == len(data["items"])
+          print("Current edition:", path, "items:", len(data["items"]), "candidates:", len(data.get("review_candidates", [])))
+          for key, value in data.get("quality", {}).items():
+              print(key, value)
+          if len(data["items"]) < 10 or len(data.get("review_candidates", [])) < 30:
+              print("::warning::Editorial target not met; review required.")
           PY
 
       - name: Upload newsletter output

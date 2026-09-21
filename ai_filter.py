@@ -12,6 +12,7 @@ Step 2: 선별된 콘텐츠에 핵심 요약 생성
 import os
 import anthropic
 import json
+from editorial_policy import same_article, publisher_key, evidence_summary
 from typing import List
 from collectors.base import ContentItem
 from config import ANTHROPIC_API_KEY, NEWSLETTER_ITEMS_COUNT
@@ -25,6 +26,7 @@ FALLBACK_MODEL = os.getenv("CLAUDE_FALLBACK_MODEL", "claude-haiku-4-5-20251001")
 _client = None
 # 폴백 상태 메모이제이션 (한 번 폴백되면 같은 실행 동안 재시도 안 함)
 _disabled_models: set = set()
+GENERATION_STATUS = {"mode": "ai", "error": None}
 
 
 def _get_client():
@@ -67,13 +69,16 @@ FILTER_PROMPT = """당신은 캠핑장 담당 MD입니다. 캠핑장 사장님(�
 
 ### 최종 구성 원칙
 - 정부/제도/날씨성 콘텐츠는 최종 1~2개 이하로 제한
-- 캠퍼 후기와 캠지기 운영 사례 기반 인사이트를 최소 4개 포함
-- 마케팅·리뷰관리·예약률·운영 트렌드 인사이트를 2개 이상 포함
+- 캠퍼 후기와 캠지기 운영 사례를 7~9개 우선 선별. 다른 캠핑장의 같은 주제 후기는 서로 다른 운영 방식을 배우므로 허용
+- 할로윈, 어린이 체험, 수영장, 재방문 이유, 청결, 매너타임, 반려견, 공간 배치 사례를 폭넓게 포함
+- 특정 캠핑장 사례는 지역명이 있어도 허용. 지역 한정 지원사업과 혼동하지 말 것
+- 데이터 기반 마케팅·운영 트렌드는 근거가 명확할 때만 0~2개. 분량을 채우려고 억지로 포함하지 말 것
 - 후기 요약에는 칭찬이나 감상 대신 시설·동선·응대·청결 등 적용 포인트를 명시
 - 단순 소개가 아니라 운영자가 이번 주에 실행할 행동을 설명할 수 있는 콘텐츠만 선택
 
 ### 반드시 제외할 콘텐츠
-- 단순 캠핑장 방문 후기, 여행 코스 추천
+- 운영상 관찰이 없는 단순 감상·여행 코스 추천. 시설·서비스에 구체적 관찰이 있는 방문 후기는 우선 선별
+- 그래가 협찬 등 경쟁사·협찬 홍보, 플랫폼 입점·독점예약 보도자료, 파크골프, 대행사 광고
 - 특정 지역/지자체에만 해당하는 지원사업, 보조금, 공모, 교육, 행사 공지
 - 특정 지역 공공 캠핑장 개장/정비 기사 중 운영 방식 인사이트가 없는 글
 - 특정 지자체 동정, 지역 관광 활성화, 고향사랑기부, 지역 농특산물 사업
@@ -120,6 +125,8 @@ SUMMARY_PROMPT = """아래 콘텐츠들의 핵심 요약을 생성해주세요. 
 - 특정 지역명은 핵심 근거가 아닌 경우 요약에서 제거
 - "~합니다" 체로 작성
 - 광고성 문구 제거, 팩트만
+- 제공된 자료에 없는 수치, 성과, 인과관계는 만들지 말 것
+- 자료에서 관찰된 사실과 편집자의 운영 적용 제안을 명확히 구분. 검색 발췌만 있으면 원문 전체를 읽은 것처럼 단정하지 말 것
 
 ## 콘텐츠 목록
 {content_list}
@@ -138,6 +145,7 @@ def _call_claude(prompt: str) -> str:
     """Claude API 호출 (Sonnet → Haiku 자동 폴백)"""
     client = _get_client()
     if not client:
+        GENERATION_STATUS.update(mode="evidence_fallback", error="missing_api_key")
         return ""
 
     models_to_try = [m for m in (PRIMARY_MODEL, FALLBACK_MODEL) if m not in _disabled_models]
@@ -148,7 +156,7 @@ def _call_claude(prompt: str) -> str:
         try:
             response = client.messages.create(
                 model=model,
-                max_tokens=2000,
+                max_tokens=6000,
                 messages=[{"role": "user", "content": prompt}],
             )
             usage = getattr(response, "usage", None)
@@ -158,6 +166,12 @@ def _call_claude(prompt: str) -> str:
                 print(f"    ✓ {model} 사용")
             return response.content[0].text
         except Exception as e:
+            if getattr(e, "status_code", None) == 401:
+                GENERATION_STATUS.update(mode="evidence_fallback", error="invalid_api_key")
+                _disabled_models.update((PRIMARY_MODEL, FALLBACK_MODEL))
+                print("::warning::Anthropic authentication failed; replace ANTHROPIC_API_KEY. Evidence-only draft generated.")
+                return ""
+            GENERATION_STATUS.update(mode="evidence_fallback", error="api_unavailable")
             if _is_quota_or_credit_error(e):
                 print(f"    ⚠ {model} 사용 불가 (크레딧/쿼터): {e}")
                 _disabled_models.add(model)
@@ -187,7 +201,7 @@ def _format_content_list(items: List[ContentItem]) -> str:
     """콘텐츠 목록을 프롬프트용 문자열로 변환"""
     lines = []
     for i, item in enumerate(items):
-        desc = item.description[:200] if item.description else ""
+        desc = item.description[:700] if item.description else ""
         lines.append(f"[{i}] 제목: {item.title}")
         lines.append(f"    출처: {item.source}")
         lines.append(f"    내용: {desc}")
@@ -416,6 +430,11 @@ def _is_hard_rejected(item: ContentItem) -> bool:
     has_operator_context = any(w in combined for w in operator_context_words)
     has_review_insight = _has_review_insight(item)
 
+    excluded = ["파크골프", "마케팅 대행", "광고 대행", "플랫폼 관리",
+                "단독 예약", "독점 예약", "플랫폼 입점", "상판", "시공업체"]
+    if any(term in combined for term in excluded):
+        return True
+
     if _is_low_value_public_notice(item):
         return True
 
@@ -567,6 +586,8 @@ def _rule_based_score(item: ContentItem) -> float:
     text = f"{item.title} {item.description}".lower()
     title = item.title.lower()
     score = 0.0
+    if _has_review_insight(item):
+        score += 6.0
 
     # 강한 긍정 신호
     for s in _STRONG_POSITIVE:
@@ -624,42 +645,15 @@ def _extract_keywords(text: str) -> set:
 def _deduplicate_similar(items: List[ContentItem]) -> List[ContentItem]:
     """유사한 내용의 기사 중복 제거 (제목+본문 키워드 겹침 기반)"""
     unique = []
-    seen_keyword_sets = []
     for item in items:
-        combined = f"{item.title} {item.description}"
-        kw = _extract_keywords(combined)
-        is_dup = False
-        for seen_kw in seen_keyword_sets:
-            if len(kw) > 3 and len(seen_kw) > 3:
-                overlap = len(kw & seen_kw)
-                smaller = min(len(kw), len(seen_kw))
-                if smaller > 0 and overlap / smaller > 0.5:
-                    is_dup = True
-                    break
-        if not is_dup:
-            seen_keyword_sets.append(kw)
+        if not any(same_article(item, previous) for previous in unique):
             unique.append(item)
-    removed = len(items) - len(unique)
-    if removed > 0:
-        print(f"    🔄 유사 내용 중복: {removed}개 제거")
     return unique
 
 
 def _is_similar_topic(item: ContentItem, selected: List[ContentItem]) -> bool:
-    """이미 선별된 콘텐츠와 같은 소재인지 판정."""
-    kw = _extract_keywords(f"{item.title} {item.description}")
-    if len(kw) <= 3:
-        return False
-
-    for existing in selected:
-        seen_kw = _extract_keywords(f"{existing.title} {existing.description}")
-        if len(seen_kw) <= 3:
-            continue
-        overlap = len(kw & seen_kw)
-        smaller = min(len(kw), len(seen_kw))
-        if smaller > 0 and overlap / smaller >= 0.45:
-            return True
-    return False
+    """Reject the same article, not the same operational theme."""
+    return any(same_article(item, previous) for previous in selected)
 
 
 def _source_group(item: ContentItem) -> str:
@@ -702,14 +696,14 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
     """특정 출처/카테고리가 과도하게 몰리지 않도록 최종 선별 목록을 보정."""
     source_limits = {
         "지식iN": 1,
-        "카페": 5,
-        "네이버 블로그": 4,
+        "카페": count,
+        "네이버 블로그": count,
         "뉴스/제도": 2,
     }
-    default_category_limit = 3
+    default_category_limit = count
     category_limits = {
-        "후기인사이트": 4,
-        "운영노하우": 3,
+        "후기인사이트": count,
+        "운영노하우": count,
         "시즌운영": 2,
         "시설안전": 2,
         "물놀이안전": 1,
@@ -724,11 +718,17 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
     selected_urls = set()
     source_count = {}
     category_count = {}
+    publishers = {}
 
     def can_add(item: ContentItem) -> bool:
         if item.url in selected_urls or _is_hard_rejected(item):
             return False
         if _is_similar_topic(item, selected):
+            return False
+        publisher = publisher_key(item)
+        # Large community cafes contain independent authors and campgrounds.
+        publisher_limit = count if publisher.startswith("cafe.naver.com/") else 2
+        if publishers.get(publisher, 0) >= publisher_limit:
             return False
         source = _source_group(item)
         if source_count.get(source, 0) >= source_limits.get(source, 3):
@@ -742,6 +742,8 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         if not item.category or item.category in ["블로그", "커뮤니티"]:
             item.category = _classify_category(item)
         selected.append(item)
+        publisher = publisher_key(item)
+        publishers[publisher] = publishers.get(publisher, 0) + 1
         selected_urls.add(item.url)
         source = _source_group(item)
         source_count[source] = source_count.get(source, 0) + 1
@@ -815,7 +817,7 @@ def _rule_based_filter(items: List[ContentItem], count: int) -> List[ContentItem
         if not item.summary and item.description:
             # HTML 엔티티 정리 + 깔끔하게 자르기
             desc = item.description.replace("&quot;", '"').replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
-            item.summary = desc[:200].strip()
+            item.summary = evidence_summary(item)
 
     print(f"    ✅ 최종 선별: {len(result)}개")
     for i, item in enumerate(result, 1):
@@ -856,6 +858,7 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
         return []
 
     if not has_api:
+        GENERATION_STATUS.update(mode="evidence_fallback", error="missing_api_key")
         return _rule_based_filter(eligible_items, count)
 
     # === Step 1: AI 필터링 ===
@@ -912,7 +915,12 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
         print("    요약 생성 실패, description 사용")
         for item in filtered:
             if not item.summary and item.description:
-                item.summary = item.description[:150]
+                item.summary = evidence_summary(item)
+
+    for item in filtered:
+        if not item.summary:
+            item.summary = evidence_summary(item)
+            GENERATION_STATUS.update(mode="evidence_fallback", error="incomplete_summaries")
 
     print("\n" + "-" * 60)
     print(f"  최종 결과: {len(filtered)}개")
@@ -946,15 +954,24 @@ def prepare_replacement_candidates(
             continue
         if not item.summary and item.description:
             desc = item.description.replace("&quot;", '"').replace("&amp;", "&")
-            item.summary = desc[:220].strip()
+            item.summary = evidence_summary(item)
         candidates.append(item)
 
     candidates = _deduplicate_similar(candidates)
     candidates.sort(key=lambda item: item.score, reverse=True)
+    # Round-robin topics so the replacement list does not start with one theme.
+    buckets = {}
+    for item in candidates:
+        buckets.setdefault(item.category, []).append(item)
+    candidates = []
+    while any(buckets.values()):
+        for bucket in buckets.values():
+            if bucket:
+                candidates.append(bucket.pop(0))
 
     selected = []
     source_count = {}
-    candidate_source_limits = {"뉴스/제도": 6, "지식iN": 4, "카페": 28, "네이버 블로그": 20}
+    candidate_source_limits = {"뉴스/제도": 4, "지식iN": 1, "카페": 50, "네이버 블로그": 50}
     for item in candidates:
         source = _source_group(item)
         if source_count.get(source, 0) >= candidate_source_limits.get(source, 6):

@@ -2,7 +2,7 @@
 Newsletter Generator
 선별된 콘텐츠로 뉴스레터를 생성합니다.
 """
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List
 import os
 import json
@@ -18,7 +18,7 @@ DASHBOARD_PUBLIC_DATA_DIR = os.path.join(DASHBOARD_DIR, "public", "data")
 def get_week_info(date: datetime = None) -> dict:
     """Get year, month, and week number for the given date"""
     if date is None:
-        date = datetime.now()
+        date = datetime.now(timezone(timedelta(hours=9)))
     
     # ISO week number
     year = date.year
@@ -112,7 +112,17 @@ def generate_newsletter_json(
     if week_info is None:
         week_info = get_week_info()
     
+    from ai_filter import GENERATION_STATUS
+    from editorial_policy import TARGET_ITEMS, TARGET_CANDIDATES
     return {
+        "quality": {
+            "editorial_version": 2,
+            "target_items": TARGET_ITEMS,
+            "target_candidates": TARGET_CANDIDATES,
+            "items_shortfall": max(0, TARGET_ITEMS - len(items)),
+            "candidates_shortfall": max(0, TARGET_CANDIDATES - len(review_candidates or [])),
+            "summary_generation": dict(GENERATION_STATUS),
+        },
         "id": f"{week_info['year']}-{week_info['month']:02d}-week{week_info['week_of_month']}",
         "title": f"{NEWSLETTER_TITLE_PREFIX} - {week_info['display']}",
         "week_info": week_info,
