@@ -42,7 +42,33 @@ prompt = """캠핑장 5~10년 운영자에게 전달하는 운영 인사이트 �
 JSON 배열만 응답: [{"index":0,"category":"체험운영","reason":"구체적인 선정 이유"}]
 자료:
 """ + _format_content_list(pool)
-selection = _parse_json_response(_call_claude(prompt))
+response = _call_claude(prompt)
+(root / "review/ai_selection_response.txt").write_text(response, encoding="utf-8")
+def selection_rows(text):
+    decoder = json.JSONDecoder()
+    parsed = None
+    for position, character in enumerate(text):
+        if character not in "[{":
+            continue
+        try:
+            parsed, _ = decoder.raw_decode(text[position:])
+            break
+        except json.JSONDecodeError:
+            continue
+    def rows(value):
+        if isinstance(value, bool):
+            return []
+        if isinstance(value, int):
+            return [{"index": value}]
+        if isinstance(value, list):
+            return [row for child in value for row in rows(child)]
+        if isinstance(value, dict):
+            if "index" in value:
+                return [value]
+            return [row for child in value.values() if isinstance(child, (list, dict)) for row in rows(child)]
+        return []
+    return rows(parsed)
+selection = selection_rows(response)
 chosen = []
 reasons = {}
 for row in selection:
