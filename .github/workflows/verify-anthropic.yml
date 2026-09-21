@@ -1,0 +1,26 @@
+name: Verify Anthropic API
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-anthropic.yml'
+      - 'review/verify_anthropic.py'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: Verify real AI selection and summaries
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_PRIMARY_MODEL: ${{ vars.CLAUDE_PRIMARY_MODEL || 'claude-sonnet-4-6' }}
+          CLAUDE_FALLBACK_MODEL: ${{ vars.CLAUDE_FALLBACK_MODEL || 'claude-haiku-4-5-20251001' }}
+        run: python review/verify_anthropic.py
