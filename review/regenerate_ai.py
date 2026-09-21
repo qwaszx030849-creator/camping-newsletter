@@ -80,6 +80,29 @@ for row in selection:
             item.summary = ""
             chosen.append(item)
             reasons[item.url] = row.get("reason", "")
+for attempt in range(2):
+    if len(chosen) >= 40:
+        break
+    remaining = [x for x in pool if not any(same_article(x, y) for y in chosen)]
+    needed = 40 - len(chosen)
+    supplement_prompt = f"""캠핑장 운영 인사이트 뉴스레터의 교체 후보를 정확히 {needed}개 추가 선별하세요.
+앞선 선별분과 겹치지 않는 나머지 자료입니다. 캠퍼 후기와 캠지기 운영 사례에서 구체적인 운영 포인트가 있는 것을 골라주세요.
+그래가, 협찬, 플랫폼 홍보, 파크골프, 정부/날씨 단신, 질문만 있는 글은 제외합니다.
+같은 테마라도 다른 캠핑장의 다른 운영 사례는 허용합니다. 측정되지 않은 성과는 추측하지 마세요.
+JSON 배열만 반환: [{{"index":0,"category":"시설관리","reason":"선정 이유"}}]
+자료:
+""" + _format_content_list(remaining)
+    supplement = selection_rows(_call_claude(supplement_prompt))
+    for row in supplement:
+        idx = row.get("index")
+        if isinstance(idx, int) and 0 <= idx < len(remaining):
+            item = remaining[idx]
+            if not any(same_article(item, x) for x in chosen):
+                item.category = row.get("category", item.category)
+                item.summary = ""
+                chosen.append(item)
+                reasons[item.url] = row.get("reason", "")
+    print(f"AI supplement {attempt + 1}: {len(chosen)} selected", flush=True)
 assert len(chosen) >= 40, f"Only {len(chosen)} selected; draft not published"
 chosen = chosen[:40]
 for offset in range(0, 40, 5):
