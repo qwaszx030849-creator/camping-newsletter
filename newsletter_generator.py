@@ -116,7 +116,7 @@ def generate_newsletter_json(
     from editorial_policy import TARGET_ITEMS, TARGET_CANDIDATES
     return {
         "quality": {
-            "editorial_version": 2,
+            "editorial_version": 3,
             "target_items": TARGET_ITEMS,
             "target_candidates": TARGET_CANDIDATES,
             "items_shortfall": max(0, TARGET_ITEMS - len(items)),

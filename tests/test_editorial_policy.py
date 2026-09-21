@@ -1,5 +1,6 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
+import json
 from datetime import datetime
 from collectors.base import ContentItem
 from ai_filter import _balance_items, _is_hard_rejected, prepare_replacement_candidates
@@ -11,7 +12,7 @@ def review(i):
         title=f"{i} 솔숲 캠핑장 {chr(0xAC00 + i * 50)} 별도 후기",
         url=f"https://blog.naver.com/author{i}/{10000+i}",
         source="네이버 블로그",
-        description="화장실 청결과 샤워실 온수가 좋았고 매너타임 순찰이 있었습니다.",
+        description="화장실 청결과 샤워실 온수가 좋았고 매너타임 순찰이 있었습니다. 아이들이 이용하는 시간에도 공용 공간을 여러 차례 청소하고 소모품을 보충하는 모습을 보았습니다.",
         category="후기인사이트",
     )
 
@@ -40,6 +41,12 @@ class EditorialTests(unittest.TestCase):
         item.title = "숲속 캠핑장 할로윈 체험 후기"
         self.assertFalse(_is_hard_rejected(item))
 
+    def test_review_words_do_not_exempt_ads_or_wild_camping(self):
+        for title in ("무료 노지 캠핑장 후기", "캠핑장 제휴 마케팅 후기", "클라이언트 캠핑장 매출 후기"):
+            item = review(1)
+            item.title = title
+            self.assertTrue(_is_hard_rejected(item))
+
     def test_replacement_pool_can_contain_thirty_reviews(self):
         pool = [review(i) for i in range(40)]
         candidates = prepare_replacement_candidates(pool, pool[:10])
@@ -56,6 +63,14 @@ class EditorialTests(unittest.TestCase):
         edition = generate_newsletter_json([review(1)], get_week_info(datetime(2026, 9, 21)), [])
         self.assertEqual(edition["quality"]["items_shortfall"], 9)
         self.assertEqual(edition["quality"]["candidates_shortfall"], 30)
+
+    def test_scheduled_run_preserves_user_deletions(self):
+        from main import run_newsletter_pipeline
+        for status in ("reviewed", "edited", "replaced", "deleted"):
+            existing = json.dumps({"review_status": status, "items": []})
+            with patch("main.os.path.exists", return_value=True), patch("builtins.open", mock_open(read_data=existing)), patch("main.collect_all_content") as collect:
+                run_newsletter_pipeline(skip_send=True)
+                collect.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()

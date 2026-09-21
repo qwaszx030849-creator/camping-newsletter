@@ -214,10 +214,10 @@ def run_newsletter_pipeline(test_mode: bool = True, skip_send: bool = False, for
     if os.path.exists(current_path) and not force:
         with open(current_path, encoding="utf-8") as handle:
             existing = json.load(handle)
-        if existing.get("review_status") in ("reviewed", "approved", "published") or (
+        if existing.get("review_status") in ("reviewed", "approved", "published", "edited", "replaced", "deleted") or (
             len(existing.get("items", [])) == TARGET_ITEMS
             and len(existing.get("review_candidates", [])) >= TARGET_CANDIDATES
-            and existing.get("quality", {}).get("editorial_version") == 2
+            and existing.get("quality", {}).get("editorial_version") == 3
         ):
             print("Existing reviewed/complete edition preserved; use --force to regenerate.")
             return

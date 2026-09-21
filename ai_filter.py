@@ -374,6 +374,16 @@ _SOURCE_BONUS = {
 def _classify_category(item: ContentItem) -> str:
     """콘텐츠 카테고리 자동 분류"""
     text = f"{item.title} {item.description}".lower()
+    if any(w in text for w in ["할로윈", "크리스마스", "어린이날", "추석 행사"]):
+        return "시즌이벤트"
+    if any(w in text for w in ["반려견", "애견", "울타리"]):
+        return "반려견운영"
+    if any(w in text for w in ["체험", "보물찾기", "영화 상영", "프로그램"]):
+        return "키즈/체험"
+    if any(w in text for w in ["매너타임", "소음"]):
+        return "고객관리"
+    if "장박" in text:
+        return "장박운영"
     if any(w in text for w in ["장마", "집중호우", "폭염", "태풍", "온열질환", "성수기 대비"]):
         return "시즌운영"
     if any(w in text for w in ["수영장", "물놀이", "익수", "구명조끼"]):
@@ -429,10 +439,23 @@ def _is_hard_rejected(item: ContentItem) -> bool:
     ]
     has_operator_context = any(w in combined for w in operator_context_words)
     has_review_insight = _has_review_insight(item)
+    has_lodging_data = (
+        item.source in ("네이버 뉴스", "구글 뉴스")
+        and any(w in combined for w in ("숙박", "호텔"))
+        and any(w in combined for w in ("조사", "통계", "데이터", "설문"))
+        and any(w in combined for w in ("마케팅", "예약", "만족도", "재방문"))
+    )
 
     excluded = ["파크골프", "마케팅 대행", "광고 대행", "플랫폼 관리",
-                "단독 예약", "독점 예약", "플랫폼 입점", "상판", "시공업체"]
+                "단독 예약", "독점 예약", "플랫폼 입점", "상판", "시공업체",
+                "무료 노지", "노지 캠핑", "제휴 마케팅", "수수료를 제공",
+                "제공받을", "클라이언트", "노출하는 사람들", "요잇당",
+                "스마트플레이스 활용 실전 전략", "후기이벤트"]
     if any(term in combined for term in excluded):
+        return True
+    if any(term in title for term in ("차박지", "캠핑카", "전동 화물", "추천부탁", "가능한가요", "어떤 곳이 좋을까요")):
+        return True
+    if len((item.description or "").strip()) < 60:
         return True
 
     if _is_low_value_public_notice(item):
@@ -480,6 +503,8 @@ def _is_hard_rejected(item: ContentItem) -> bool:
             pass
 
     for signal in _HARD_REJECT_TITLE:
+        if signal == "숙박업" and has_lodging_data:
+            continue
         if signal.lower() in title and not has_review_insight:
             return True
 
@@ -496,7 +521,7 @@ def _is_hard_rejected(item: ContentItem) -> bool:
     if item.source in ["네이버 뉴스", "구글 뉴스"]:
         # 제목에 캠핑 관련 단어가 반드시 있어야 함
         title_has_camping = any(w in title for w in camping_words)
-        if not title_has_camping:
+        if not title_has_camping and not has_lodging_data:
             return True
 
     # 캠핑장 운영과 무관한 주제 (캠핑장이 언급만 되는 경우)
