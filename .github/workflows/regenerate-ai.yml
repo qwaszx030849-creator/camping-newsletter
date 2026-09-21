@@ -1,0 +1,38 @@
+name: Regenerate AI Newsletter Draft
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'review/regenerate_ai.py'
+      - '.github/workflows/regenerate-ai.yml'
+permissions:
+  contents: write
+concurrency:
+  group: newsletter-ai-draft
+  cancel-in-progress: false
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: Collect, select and summarize with AI
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+          CLAUDE_PRIMARY_MODEL: ${{ vars.CLAUDE_PRIMARY_MODEL || 'claude-sonnet-4-6' }}
+          CLAUDE_FALLBACK_MODEL: ${{ vars.CLAUDE_FALLBACK_MODEL || 'claude-haiku-4-5-20251001' }}
+        run: python -u review/regenerate_ai.py
+      - name: Save review draft only
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add review/ai_newsletter_*.json
+          git diff --staged --quiet || git commit -m "Generate AI newsletter draft for editorial review"
+          git push
