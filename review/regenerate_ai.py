@@ -96,7 +96,7 @@ JSON 배열만 응답: [{"index":0,"summary":"..."}]
 7. 법적 의무, 안전 기준이나 수익성을 근거 없이 확정하지 않습니다.
 8. 사실은 있는 만큼만 쓰고 적용 제안은 검토할 선택지로 서술합니다.
 """ + "\n".join(f"[{i}] 근거 범위: {x.evidence_basis}" for i,x in enumerate(batch)) + "\n" + _format_content_list(batch)
-    summaries = _parse_json_response(_call_claude(prompt))
+    summaries = selection_rows(_call_claude(prompt))
     seen = set()
     for row in summaries:
         idx, summary = row.get("index"), row.get("summary", "")
