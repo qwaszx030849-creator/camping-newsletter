@@ -21,6 +21,7 @@ class ContentItem:
     published_date: Optional[datetime] = None
     category: str = ""
     score: float = 0.0  # AI relevance score
+    evidence_basis: str = "search_excerpt"
 
     def to_dict(self) -> dict:
         return {
@@ -31,7 +32,8 @@ class ContentItem:
             "summary": self.summary,
             "published_date": self.published_date.isoformat() if self.published_date else None,
             "category": self.category,
-            "score": self.score
+            "score": self.score,
+            "evidence_basis": self.evidence_basis
         }
 
 

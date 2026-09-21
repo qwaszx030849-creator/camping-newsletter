@@ -47,6 +47,20 @@ class EditorialTests(unittest.TestCase):
             item.title = title
             self.assertTrue(_is_hard_rejected(item))
 
+    def test_sponsorship_hidden_in_body_is_excluded(self):
+        from collectors.public_review import enrich_public_reviews
+        with patch("collectors.public_review.requests.get") as get:
+            get.return_value.text = '<div class="se-main-container"><p>숙박을 제공받아 작성한 후기입니다.</p></div>'
+            self.assertEqual(enrich_public_reviews([review(1)]), [])
+
+    def test_public_body_evidence_is_recorded(self):
+        from collectors.public_review import enrich_public_reviews
+        with patch("collectors.public_review.requests.get") as get:
+            get.return_value.text = '<div class="se-main-container"><p>매너타임에는 관리자가 직접 순찰하며 소음이 나는 사이트에 안내했습니다.</p></div>'
+            result = enrich_public_reviews([review(1)])
+            self.assertEqual(result[0].evidence_basis, "public_blog_body")
+            self.assertIn("직접 순찰", result[0].description)
+
     def test_replacement_pool_can_contain_thirty_reviews(self):
         pool = [review(i) for i in range(40)]
         candidates = prepare_replacement_candidates(pool, pool[:10])

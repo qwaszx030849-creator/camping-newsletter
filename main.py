@@ -11,6 +11,7 @@ from editorial_policy import TARGET_ITEMS, TARGET_CANDIDATES, review_queries, sa
 from typing import List, Set, Tuple
 
 from collectors.base import ContentItem
+from collectors.public_review import enrich_public_reviews
 from collectors.google_news import GoogleNewsCollector
 from collectors.blog_collector import NaverBlogCollector
 from collectors.naver_news import NaverNewsCollector
@@ -195,6 +196,7 @@ def collect_all_content() -> List[ContentItem]:
     unique_items = list({canonical_url(item.url): item for item in all_items if item.url}.values())
     used_urls, previous_items = _load_previous_items()
     fresh_items = _remove_previously_used(unique_items, used_urls, previous_items)
+    fresh_items = enrich_public_reviews(fresh_items)
 
     print(f"\n📊 수집 완료: {len(all_items)}개 → 중복 제거 {len(unique_items)}개 → 최종 {len(fresh_items)}개")
     return fresh_items
