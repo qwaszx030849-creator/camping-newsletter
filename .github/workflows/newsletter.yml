@@ -64,12 +64,22 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+          from datetime import datetime
+          from collectors.base import ContentItem
+          from editorial_policy import is_recent_article
           from newsletter_generator import get_week_info
           w = get_week_info()
           path = Path("output") / f"newsletter_{w['year']}_{w['month']:02d}_week{w['week_of_month']}.json"
           data = json.loads(path.read_text(encoding="utf-8"))
           assert data["items_count"] == len(data["items"])
           assert len({item["url"] for item in data["items"]}) == len(data["items"])
+          issue_date = datetime.fromisoformat(w["date"])
+          records = data["items"] + data.get("review_candidates", [])
+          assert all(is_recent_article(ContentItem(
+              title=item["title"], url=item["url"], source=item["source"],
+              description=item.get("description", ""),
+              published_date=datetime.fromisoformat(item["published_date"]) if item.get("published_date") else None,
+          ), issue_date) for item in records), "Date policy violation: undated or older-than-3-month content"
           print("Current edition:", path, "items:", len(data["items"]), "candidates:", len(data.get("review_candidates", [])))
           for key, value in data.get("quality", {}).items():
               print(key, value)

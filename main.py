@@ -119,6 +119,26 @@ def _remove_duplicate_bloggers(items: List[ContentItem]) -> List[ContentItem]:
     return unique
 
 
+def _record_is_recent(record: dict, issue_date: datetime) -> bool:
+    """Validate an already-generated record before allowing it to be preserved."""
+    published_date = record.get("published_date")
+    return is_recent_article(
+        ContentItem(
+            title=record.get("title", ""),
+            url=record.get("url", ""),
+            source=record.get("source", ""),
+            description=record.get("description", ""),
+            published_date=datetime.fromisoformat(published_date) if published_date else None,
+        ),
+        issue_date,
+    )
+
+
+def _edition_dates_are_valid(existing: dict, issue_date: datetime) -> bool:
+    records = list(existing.get("items", [])) + list(existing.get("review_candidates", []))
+    return all(_record_is_recent(record, issue_date) for record in records)
+
+
 def collect_all_content() -> List[ContentItem]:
     """
     캠핑장 운영자를 위한 콘텐츠 수집
@@ -226,6 +246,7 @@ def run_newsletter_pipeline(test_mode: bool = True, skip_send: bool = False, for
     print(f"시작 시간: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
     week_info = get_week_info()
+    issue_date = datetime.strptime(week_info["date"], "%Y-%m-%d")
     current_path = os.path.join(os.path.dirname(__file__), "output",
         f"newsletter_{week_info['year']}_{week_info['month']:02d}_week{week_info['week_of_month']}.json")
     if os.path.exists(current_path) and not force:
@@ -235,9 +256,12 @@ def run_newsletter_pipeline(test_mode: bool = True, skip_send: bool = False, for
             len(existing.get("items", [])) == TARGET_ITEMS
             and len(existing.get("review_candidates", [])) >= TARGET_CANDIDATES
             and existing.get("quality", {}).get("editorial_version") == 3
+            and _edition_dates_are_valid(existing, issue_date)
         ):
             print("Existing reviewed/complete edition preserved; use --force to regenerate.")
             return
+        if existing.get("review_status") not in ("reviewed", "approved", "published", "edited", "replaced", "deleted"):
+            print("Existing edition does not satisfy the three-month date policy; regenerating.")
 
     # 1단계: 콘텐츠 수집
     all_items = collect_all_content()
