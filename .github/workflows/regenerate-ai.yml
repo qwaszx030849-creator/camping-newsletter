@@ -42,4 +42,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git add review/ai_newsletter_*.json
           git diff --staged --quiet || git commit -m "Generate AI newsletter draft for editorial review"
+          git pull --rebase origin main
           git push
