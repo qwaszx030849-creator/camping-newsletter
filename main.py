@@ -7,7 +7,14 @@ import json
 import os
 import glob
 from datetime import datetime
-from editorial_policy import TARGET_ITEMS, TARGET_CANDIDATES, review_queries, same_article, canonical_url
+from editorial_policy import (
+    TARGET_ITEMS,
+    TARGET_CANDIDATES,
+    review_queries,
+    same_article,
+    canonical_url,
+    is_recent_article,
+)
 from typing import List, Set, Tuple
 
 from collectors.base import ContentItem
@@ -131,8 +138,10 @@ def collect_all_content() -> List[ContentItem]:
     # 1. 네이버 블로그 - 캠핑장 운영 실전
     # ========================================
     print("\n[1/6] 네이버 블로그 수집...")
+    issue_date = datetime.strptime(get_week_info()["date"], "%Y-%m-%d")
+
     try:
-        blog_keywords = review_queries(datetime.now().month)
+        blog_keywords = review_queries(issue_date.month)
         blog_items = NaverBlogCollector().collect(blog_keywords, max_items_per_keyword=20)
         all_items.extend(blog_items)
         print(f"   -> {len(blog_items)}개 수집")
@@ -151,7 +160,7 @@ def collect_all_content() -> List[ContentItem]:
             "숙박업 데이터 마케팅 리뷰 관리",
             "오토캠핑장 운영 트렌드",
         ]
-        if datetime.now().month in (6, 7, 8, 9):
+        if issue_date.month in (6, 7, 8, 9):
             news_keywords.extend([
                 "캠핑장 성수기 운영 트렌드",
                 "야영장 환불 예약 취소 분쟁",
@@ -185,7 +194,7 @@ def collect_all_content() -> List[ContentItem]:
     # ========================================
     print("\n[4/6] 네이버 카페 수집...")
     try:
-        cafe_keywords = review_queries(datetime.now().month)
+        cafe_keywords = review_queries(issue_date.month)
         cafe_items = NaverCafeCollector().collect(cafe_keywords, max_items_per_keyword=50)
         all_items.extend(cafe_items)
         print(f"   -> {len(cafe_items)}개 수집")
@@ -197,6 +206,12 @@ def collect_all_content() -> List[ContentItem]:
     used_urls, previous_items = _load_previous_items()
     fresh_items = _remove_previously_used(unique_items, used_urls, previous_items)
     fresh_items = enrich_public_reviews(fresh_items)
+
+    dated_items = [item for item in fresh_items if is_recent_article(item, issue_date)]
+    stale_or_undated = len(fresh_items) - len(dated_items)
+    if stale_or_undated:
+        print(f"   🗓️ 발행일 기준 3개월 초과 또는 날짜 미확인 {stale_or_undated}개 제거")
+    fresh_items = dated_items
 
     print(f"\n📊 수집 완료: {len(all_items)}개 → 중복 제거 {len(unique_items)}개 → 최종 {len(fresh_items)}개")
     return fresh_items

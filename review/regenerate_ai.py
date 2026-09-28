@@ -9,7 +9,7 @@ from main import collect_all_content, _load_previous_items, _remove_previously_u
 from ai_filter import (_call_claude, _parse_json_response, _format_content_list,
                        _is_hard_rejected, prepare_replacement_candidates, GENERATION_STATUS)
 from newsletter_generator import get_week_info, generate_newsletter_json
-from editorial_policy import canonical_url, same_article
+from editorial_policy import canonical_url, same_article, is_recent_article
 
 root = Path(__file__).resolve().parents[1]
 week = get_week_info()
@@ -25,7 +25,8 @@ for record in current["items"] + current.get("review_candidates", []):
         category=record["category"], evidence_basis=record.get("evidence_basis", "search_excerpt"),
         published_date=datetime.fromisoformat(record["published_date"]) if record.get("published_date") else None,
     )
-    if not _is_hard_rejected(item) and not any(same_article(item, x) for x in pool):
+    issue_date = datetime.strptime(week["date"], "%Y-%m-%d")
+    if is_recent_article(item, issue_date) and not _is_hard_rejected(item) and not any(same_article(item, x) for x in pool):
         pool.append(item)
 used, previous = _load_previous_items()
 pool = _remove_previously_used(pool, used, previous)

@@ -113,7 +113,16 @@ def generate_newsletter_json(
         week_info = get_week_info()
     
     from ai_filter import GENERATION_STATUS
-    from editorial_policy import TARGET_ITEMS, TARGET_CANDIDATES
+    from editorial_policy import TARGET_ITEMS, TARGET_CANDIDATES, is_recent_article, article_cutoff
+    issue_date = datetime.strptime(week_info["date"], "%Y-%m-%d")
+    invalid_dates = [
+        item.title for item in list(items) + list(review_candidates or [])
+        if not is_recent_article(item, issue_date)
+    ]
+    if invalid_dates:
+        raise ValueError(
+            f"Newsletter contains undated or older-than-3-month content: {invalid_dates[:3]}"
+        )
     return {
         "quality": {
             "editorial_version": 3,
@@ -122,6 +131,11 @@ def generate_newsletter_json(
             "items_shortfall": max(0, TARGET_ITEMS - len(items)),
             "candidates_shortfall": max(0, TARGET_CANDIDATES - len(review_candidates or [])),
             "summary_generation": dict(GENERATION_STATUS),
+            "article_date_policy": {
+                "max_age_months": 3,
+                "undated_excluded": True,
+                "cutoff": article_cutoff(issue_date).isoformat(),
+            },
         },
         "id": f"{week_info['year']}-{week_info['month']:02d}-week{week_info['week_of_month']}",
         "title": f"{NEWSLETTER_TITLE_PREFIX} - {week_info['display']}",

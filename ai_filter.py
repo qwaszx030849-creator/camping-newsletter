@@ -12,7 +12,12 @@ Step 2: 선별된 콘텐츠에 핵심 요약 생성
 import os
 import anthropic
 import json
-from editorial_policy import same_article, publisher_key, evidence_summary
+from editorial_policy import (
+    same_article,
+    publisher_key,
+    evidence_summary,
+    is_recent_article,
+)
 from typing import List
 from collectors.base import ContentItem
 from config import ANTHROPIC_API_KEY, NEWSLETTER_ITEMS_COUNT
@@ -490,17 +495,9 @@ def _is_hard_rejected(item: ContentItem) -> bool:
     if any(w.lower() in combined for w in competitor_promo_terms):
         return True
 
-    if item.published_date:
-        from datetime import datetime
-        try:
-            pub = item.published_date.replace(tzinfo=None) if item.published_date.tzinfo else item.published_date
-            days_old = (datetime.now() - pub).days
-            if item.source in ["네이버 뉴스", "구글 뉴스"] and days_old > 180:
-                return True
-            if item.source == "네이버 블로그" and days_old > 365:
-                return True
-        except Exception:
-            pass
+    # A missing date is rejected too: otherwise an undated cafe result could be years old.
+    if not is_recent_article(item):
+        return True
 
     for signal in _HARD_REJECT_TITLE:
         if signal == "숙박업" and has_lodging_data:

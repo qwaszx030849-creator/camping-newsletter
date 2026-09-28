@@ -1,11 +1,14 @@
 """Editorial rules shared by collection, selection and review."""
 import re
+import calendar
+from datetime import date, datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from html import unescape
 from urllib.parse import parse_qs, urlparse, urlunparse
 
 TARGET_ITEMS = 10
 TARGET_CANDIDATES = 30
+MAX_ARTICLE_AGE_MONTHS = 3
 
 REVIEW_QUERIES = [
     "캠핑장 재방문 후기", "캠핑장 또 가고 싶은",
@@ -31,6 +34,29 @@ SEASON_QUERIES = {
 def review_queries(month):
     season = "spring" if month in (3, 4, 5) else "summer" if month in (6, 7, 8) else "autumn" if month in (9, 10, 11) else "winter"
     return REVIEW_QUERIES + SEASON_QUERIES[season]
+
+
+def article_cutoff(as_of=None, max_age_months=MAX_ARTICLE_AGE_MONTHS):
+    """Return the inclusive publication-date cutoff for an issue date."""
+    if as_of is None:
+        as_of = datetime.now(timezone(timedelta(hours=9)))
+    issue_date = as_of.date() if isinstance(as_of, datetime) else as_of
+    month_index = issue_date.year * 12 + issue_date.month - 1 - max_age_months
+    year, month_index = divmod(month_index, 12)
+    month = month_index + 1
+    day = min(issue_date.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def is_recent_article(item, as_of=None, max_age_months=MAX_ARTICLE_AGE_MONTHS):
+    """Require a known publication date within the issue's last three months."""
+    if not item.published_date:
+        return False
+    published = item.published_date.date() if isinstance(item.published_date, datetime) else item.published_date
+    issue_date = as_of.date() if isinstance(as_of, datetime) else as_of
+    if issue_date is None:
+        issue_date = datetime.now(timezone(timedelta(hours=9))).date()
+    return article_cutoff(issue_date, max_age_months) <= published <= issue_date
 
 
 def canonical_url(url):

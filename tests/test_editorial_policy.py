@@ -14,6 +14,7 @@ def review(i):
         source="네이버 블로그",
         description="화장실 청결과 샤워실 온수가 좋았고 매너타임 순찰이 있었습니다. 아이들이 이용하는 시간에도 공용 공간을 여러 차례 청소하고 소모품을 보충하는 모습을 보았습니다.",
         category="후기인사이트",
+        published_date=datetime(2026, 9, 15),
     )
 
 class EditorialTests(unittest.TestCase):
@@ -77,6 +78,22 @@ class EditorialTests(unittest.TestCase):
         edition = generate_newsletter_json([review(1)], get_week_info(datetime(2026, 9, 21)), [])
         self.assertEqual(edition["quality"]["items_shortfall"], 9)
         self.assertEqual(edition["quality"]["candidates_shortfall"], 30)
+
+    def test_articles_older_than_three_months_or_undated_are_rejected(self):
+        from editorial_policy import is_recent_article
+        issue_date = datetime(2026, 9, 21)
+        self.assertTrue(is_recent_article(review(1), issue_date))
+        old = review(2)
+        old.published_date = datetime(2026, 6, 20)
+        self.assertFalse(is_recent_article(old, issue_date))
+        cutoff = review(3)
+        cutoff.published_date = datetime(2026, 6, 21)
+        self.assertTrue(is_recent_article(cutoff, issue_date))
+        undated = review(4)
+        undated.published_date = None
+        self.assertFalse(is_recent_article(undated, issue_date))
+        self.assertTrue(_is_hard_rejected(old))
+        self.assertTrue(_is_hard_rejected(undated))
 
     def test_scheduled_run_preserves_user_deletions(self):
         from main import run_newsletter_pipeline

@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from collectors.base import ContentItem
 from newsletter_generator import generate_newsletter_text
-from editorial_policy import canonical_url
+from editorial_policy import canonical_url, is_recent_article
 from main import _load_previous_items
 
 root = Path(__file__).resolve().parents[1]
@@ -16,6 +16,12 @@ assert data["items_count"] == len(data["items"]) == 10
 assert len(data["review_candidates"]) >= 30
 assert data["quality"]["summary_generation"] == {"mode": "ai", "error": None}
 all_items = data["items"] + data["review_candidates"]
+issue_date = datetime.fromisoformat(data["week_info"]["date"])
+assert all(is_recent_article(ContentItem(
+    title=x["title"], url=x["url"], source=x["source"],
+    description=x.get("description", ""),
+    published_date=datetime.fromisoformat(x["published_date"]) if x.get("published_date") else None,
+), issue_date) for x in all_items), "Draft contains undated or older-than-3-month content"
 assert len({canonical_url(x["url"]) for x in all_items}) == len(all_items)
 used, _ = _load_previous_items()
 assert not {canonical_url(x["url"]) for x in all_items} & used
