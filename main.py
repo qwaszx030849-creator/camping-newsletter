@@ -140,7 +140,7 @@ def _edition_dates_are_valid(existing: dict, issue_date: datetime) -> bool:
 
 
 def _edition_insights_are_valid(existing: dict) -> bool:
-    """Require the structured lesson fields before preserving an auto draft."""
+    """Require structured lesson fields before preserving a v4 auto draft."""
     records = list(existing.get("items", [])) + list(existing.get("review_candidates", []))
     return all(
         isinstance(record.get("insight"), dict)
