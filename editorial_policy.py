@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse, urlunparse
 TARGET_ITEMS = 10
 TARGET_CANDIDATES = 30
 MAX_ARTICLE_AGE_MONTHS = 3
+INSIGHT_TAGS = ("운영", "시설", "이벤트", "고객경험", "안전/리스크", "시즌")
 
 REVIEW_QUERIES = [
     "캠핑장 재방문 후기", "캠핑장 또 가고 싶은",
@@ -34,6 +35,61 @@ SEASON_QUERIES = {
 def review_queries(month):
     season = "spring" if month in (3, 4, 5) else "summer" if month in (6, 7, 8) else "autumn" if month in (9, 10, 11) else "winter"
     return REVIEW_QUERIES + SEASON_QUERIES[season]
+
+
+def insight_tags(item):
+    """Infer safe fallback tags from the observed title and source excerpt."""
+    text = f"{getattr(item, 'title', '')} {getattr(item, 'description', '')}".lower()
+    rules = (
+        ("이벤트", ("할로윈", "보물찾기", "체험", "프로그램", "영화", "행사", "만들기")),
+        ("시설", ("화장실", "샤워", "개수대", "수영장", "사이트", "그늘", "온수", "매점")),
+        ("고객경험", ("후기", "재방문", "친절", "응대", "좋았", "만족", "불편")),
+        ("안전/리스크", ("환불", "예약취소", "오버부킹", "위생", "단속", "사고", "매너타임")),
+        ("시즌", ("장마", "우천", "여름", "겨울", "성수기", "비수기", "가을", "봄")),
+        ("운영", ("체크인", "입실", "퇴실", "청소", "운영", "관리", "동선", "분리수거")),
+    )
+    tags = [tag for tag, words in rules if any(word in text for word in words)]
+    return tags[:4] or ["운영"]
+
+
+def fallback_insight(item):
+    """Return a clearly labelled structure when an AI response is unavailable."""
+    tags = insight_tags(item)
+    return {
+        "tags": tags,
+        "strength": "원문에서 확인되는 " + "·".join(tags) + " 운영 사례",
+        "customer_signal": "고객 반응 미확인",
+        "lesson": "후기에서 확인된 사실과 편집자의 적용 제안을 나누어 검토합니다.",
+        "apply": "인력·비용·동선·관리 부담을 확인한 뒤 우리 캠핑장 적용 여부를 판단합니다.",
+    }
+
+
+def normalize_insight(raw):
+    """Normalize model output so the dashboard and Kakao text stay predictable."""
+    if not isinstance(raw, dict):
+        return {}
+    aliases = {
+        "고객": "고객경험", "고객 반응": "고객경험", "안전": "안전/리스크",
+        "리스크": "안전/리스크", "시즌운영": "시즌", "시설관리": "시설",
+    }
+    tags = []
+    raw_tags = raw.get("tags", raw.get("keywords", []))
+    if isinstance(raw_tags, str):
+        raw_tags = re.split(r"[,·/ ]+", raw_tags)
+    if isinstance(raw_tags, list):
+        for tag in raw_tags:
+            normalized = aliases.get(str(tag).strip(), str(tag).strip())
+            if normalized in INSIGHT_TAGS and normalized not in tags:
+                tags.append(normalized)
+    def clean(value, limit):
+        return " ".join(str(value or "").split()).strip()[:limit]
+    return {
+        "tags": tags[:4],
+        "strength": clean(raw.get("strength", raw.get("key_strength")), 180),
+        "customer_signal": clean(raw.get("customer_signal"), 220),
+        "lesson": clean(raw.get("lesson", raw.get("why_learnable")), 260),
+        "apply": clean(raw.get("apply", raw.get("application_checklist")), 260),
+    }
 
 
 def article_cutoff(as_of=None, max_age_months=MAX_ARTICLE_AGE_MONTHS):

@@ -26,6 +26,7 @@ assert len({canonical_url(x["url"]) for x in all_items}) == len(all_items)
 used, _ = _load_previous_items()
 assert not {canonical_url(x["url"]) for x in all_items} & used
 assert all(len(x["summary"]) >= 60 and not x["summary"].startswith("확인된 자료 발췌:") for x in all_items)
+assert all(x.get("insight", {}).get("tags") and x.get("insight", {}).get("lesson") for x in all_items)
 data["review_status"] = "reviewed"
 data["user_review_pending"] = True
 data["quality"]["editorial_review_completed"] = True
@@ -39,6 +40,6 @@ for directory in ("output", f"archive/{w['year']}/{w['month']:02d}",
                   f"dashboard/data/archive/{w['year']}/{w['month']:02d}", "dashboard/public/data"):
     (root / directory / name).write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 items = [ContentItem(title=x["title"], url=x["url"], source=x["source"],
-                     description=x["description"], summary=x["summary"], category=x["category"]) for x in data["items"]]
+                     description=x["description"], summary=x["summary"], category=x["category"], insight=x.get("insight", {})) for x in data["items"]]
 (root / "output" / name.replace(".json", ".txt")).write_text(generate_newsletter_text(items, w), encoding="utf-8")
 print(json.dumps({"items": len(items), "candidates":len(data["review_candidates"]), "quality":data["quality"]}, ensure_ascii=False))

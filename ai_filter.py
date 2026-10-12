@@ -17,6 +17,8 @@ from editorial_policy import (
     publisher_key,
     evidence_summary,
     is_recent_article,
+    fallback_insight,
+    normalize_insight,
 )
 from typing import List
 from collectors.base import ContentItem
@@ -120,12 +122,10 @@ FILTER_PROMPT = """당신은 캠핑장 담당 MD입니다. 캠핑장 사장님(�
 # ============================================================================
 # Step 2: AI 요약 생성
 # ============================================================================
-SUMMARY_PROMPT = """아래 콘텐츠들의 핵심 요약을 생성해주세요. 캠핑장 사장님이 빠르게 읽을 수 있도록 각 콘텐츠에 대해 2~3줄로 요약합니다.
+SUMMARY_PROMPT = """아래 콘텐츠들의 핵심 요약과 구조화된 운영 인사이트를 생성해주세요. 캠핑장 사장님이 단순 후기가 아니라 무엇을 배울 수 있는지 빠르게 판단할 수 있어야 합니다.
 
 요약 규칙:
-- 첫 줄: 핵심 인사이트 (캠핑장 사장님이 얻을 수 있는 것)
-- 둘째 줄: 구체적인 수치나 방법이 있으면 포함
-- 후기 콘텐츠는 "이 캠핑장이 왜 좋게 보였는지"와 "내 캠핑장에 적용할 운영 포인트"를 분리해서 작성
+- summary는 자료에서 확인되는 사실과 운영 적용 제안을 2~3문장으로 작성
 - 기사 제목을 반복하지 말고 운영자가 이번 주 실행할 행동을 최소 1개 포함
 - 특정 지역명은 핵심 근거가 아닌 경우 요약에서 제거
 - "~합니다" 체로 작성
@@ -140,9 +140,24 @@ SUMMARY_PROMPT = """아래 콘텐츠들의 핵심 요약을 생성해주세요. 
 JSON 배열로만 응답하세요.
 ```json
 [
-  {{"index": 0, "summary": "요약 내용"}},
-  {{"index": 1, "summary": "요약 내용"}}
+  {{"index": 0, "summary": "사실과 운영 적용을 구분한 요약", "insight": {{
+    "tags": ["운영", "시설"],
+    "strength": "원문에서 확인되는 배울 만한 강점 한 줄",
+    "customer_signal": "캠퍼가 특히 좋게 느낀 점. 자료에 없으면 고객 반응 미확인",
+    "lesson": "왜 운영자가 배울 만한지",
+    "apply": "우리 캠핑장에 적용하기 전 확인할 조건"
+  }}}},
+  {{"index": 1, "summary": "...", "insight": {{"tags": ["이벤트"], "strength": "...", "customer_signal": "...", "lesson": "...", "apply": "..."}}}}
 ]
+```
+
+insight 작성 규칙:
+- tags는 운영, 시설, 이벤트, 고객경험, 안전/리스크, 시즌 중 1~4개만 선택합니다.
+- strength는 제목이 아니라 원문에서 확인되는 구체적 운영·시설·이벤트 강점을 씁니다.
+- customer_signal은 후기에서 실제로 칭찬·불편으로 언급된 부분만 씁니다. 기사나 발췌에 없으면 "고객 반응 미확인"이라고 씁니다.
+- lesson은 해당 사례가 왜 다른 캠핑장 운영자에게 참고가 되는지 설명합니다.
+- apply는 인력, 비용, 동선, 정원, 안전, 예약 조건 중 자료와 관련 있는 확인 질문이나 적용 조건을 씁니다.
+- 확인되지 않은 매출, 예약률, 재방문 증가와 인과관계를 만들지 않습니다.
 ```"""
 
 
@@ -840,6 +855,8 @@ def _rule_based_filter(items: List[ContentItem], count: int) -> List[ContentItem
             # HTML 엔티티 정리 + 깔끔하게 자르기
             desc = item.description.replace("&quot;", '"').replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
             item.summary = evidence_summary(item)
+        if not item.insight:
+            item.insight = fallback_insight(item)
 
     print(f"    ✅ 최종 선별: {len(result)}개")
     for i, item in enumerate(result, 1):
@@ -932,6 +949,9 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
             idx = s.get("index", -1)
             if 0 <= idx < len(filtered):
                 filtered[idx].summary = s.get("summary", "")
+                insight = normalize_insight(s.get("insight"))
+                if insight.get("tags") and insight.get("lesson"):
+                    filtered[idx].insight = insight
         print(f"    요약 생성 완료: {sum(1 for f in filtered if f.summary)}개")
     else:
         print("    요약 생성 실패, description 사용")
@@ -943,6 +963,8 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
         if not item.summary:
             item.summary = evidence_summary(item)
             GENERATION_STATUS.update(mode="evidence_fallback", error="incomplete_summaries")
+        if not item.insight:
+            item.insight = fallback_insight(item)
 
     print("\n" + "-" * 60)
     print(f"  최종 결과: {len(filtered)}개")
@@ -977,6 +999,8 @@ def prepare_replacement_candidates(
         if not item.summary and item.description:
             desc = item.description.replace("&quot;", '"').replace("&amp;", "&")
             item.summary = evidence_summary(item)
+        if not item.insight:
+            item.insight = fallback_insight(item)
         candidates.append(item)
 
     candidates = _deduplicate_similar(candidates)

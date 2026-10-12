@@ -139,6 +139,17 @@ def _edition_dates_are_valid(existing: dict, issue_date: datetime) -> bool:
     return all(_record_is_recent(record, issue_date) for record in records)
 
 
+def _edition_insights_are_valid(existing: dict) -> bool:
+    """Require the structured lesson fields before preserving an auto draft."""
+    records = list(existing.get("items", [])) + list(existing.get("review_candidates", []))
+    return all(
+        isinstance(record.get("insight"), dict)
+        and record["insight"].get("tags")
+        and record["insight"].get("lesson")
+        for record in records
+    )
+
+
 def collect_all_content() -> List[ContentItem]:
     """
     캠핑장 운영자를 위한 콘텐츠 수집
@@ -255,8 +266,9 @@ def run_newsletter_pipeline(test_mode: bool = True, skip_send: bool = False, for
         if existing.get("review_status") in ("reviewed", "approved", "published", "edited", "replaced", "deleted") or (
             len(existing.get("items", [])) == TARGET_ITEMS
             and len(existing.get("review_candidates", [])) >= TARGET_CANDIDATES
-            and existing.get("quality", {}).get("editorial_version") == 3
+            and existing.get("quality", {}).get("editorial_version") == 4
             and _edition_dates_are_valid(existing, issue_date)
+            and _edition_insights_are_valid(existing)
         ):
             print("Existing reviewed/complete edition preserved; use --force to regenerate.")
             return

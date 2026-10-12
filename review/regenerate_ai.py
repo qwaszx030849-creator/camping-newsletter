@@ -9,7 +9,7 @@ from main import collect_all_content, _load_previous_items, _remove_previously_u
 from ai_filter import (_call_claude, _parse_json_response, _format_content_list,
                        _is_hard_rejected, prepare_replacement_candidates, GENERATION_STATUS)
 from newsletter_generator import get_week_info, generate_newsletter_json
-from editorial_policy import canonical_url, same_article, is_recent_article
+from editorial_policy import canonical_url, same_article, is_recent_article, normalize_insight, fallback_insight
 
 root = Path(__file__).resolve().parents[1]
 week = get_week_info()
@@ -24,6 +24,7 @@ for record in current["items"] + current.get("review_candidates", []):
         source=record["source"], description=record["description"],
         category=record["category"], evidence_basis=record.get("evidence_basis", "search_excerpt"),
         published_date=datetime.fromisoformat(record["published_date"]) if record.get("published_date") else None,
+        insight=record.get("insight", {}),
     )
     issue_date = datetime.strptime(week["date"], "%Y-%m-%d")
     if is_recent_article(item, issue_date) and not _is_hard_rejected(item) and not any(same_article(item, x) for x in pool):
@@ -108,8 +109,8 @@ assert len(chosen) >= 40, f"Only {len(chosen)} selected; draft not published"
 chosen = chosen[:40]
 for offset in range(0, 40, 5):
     batch = chosen[offset:offset + 5]
-    prompt = """캠핑장 운영자를 위한 2~3문장의 운영 인사이트를 각 자료에 작성하세요.
-JSON 배열만 응답: [{"index":0,"summary":"..."}]
+    prompt = """캠핑장 운영자를 위한 2~3문장의 요약과 구조화된 운영 인사이트를 각 자료에 작성하세요.
+JSON 배열만 응답: [{"index":0,"summary":"...","insight":{"tags":["운영"],"strength":"...","customer_signal":"...","lesson":"...","apply":"..."}}]
 규칙:
 1. 첫 문장에는 자료에서 확인되는 구체적인 사실/경험을 씁니다. 두 번째부터 '운영 적용:'으로 실행 제안을 구분합니다.
 2. 매출/예약률/재방문 증가 등 측정되지 않은 성과나 인과관계를 절대 단정하지 않습니다.
@@ -119,6 +120,9 @@ JSON 배열만 응답: [{"index":0,"summary":"..."}]
 6. 제목을 반복하거나 청결/친절을 강조하라는 일반론만 쓰지 않습니다.
 7. 법적 의무, 안전 기준이나 수익성을 근거 없이 확정하지 않습니다.
 8. 사실은 있는 만큼만 쓰고 적용 제안은 검토할 선택지로 서술합니다.
+9. tags는 운영, 시설, 이벤트, 고객경험, 안전/리스크, 시즌 중 1~4개를 고릅니다.
+10. strength는 본문에서 확인되는 배울 만한 강점, customer_signal은 실제 고객 칭찬·불편만 씁니다. 없으면 '고객 반응 미확인'으로 씁니다.
+11. lesson은 왜 다른 캠핑장 운영자가 배울 만한지, apply는 인력·비용·동선·예약·안전 측면에서 적용 전 확인할 조건을 씁니다.
 """ + "\n".join(f"[{i}] 근거 범위: {x.evidence_basis}" for i,x in enumerate(batch)) + "\n" + _format_content_list(batch)
     summaries = selection_rows(_call_claude(prompt))
     seen = set()
@@ -126,6 +130,8 @@ JSON 배열만 응답: [{"index":0,"summary":"..."}]
         idx, summary = row.get("index"), row.get("summary", "")
         if isinstance(idx,int) and 0 <= idx < len(batch) and isinstance(summary,str) and len(summary) > 60:
             batch[idx].summary = summary
+            insight = normalize_insight(row.get("insight"))
+            batch[idx].insight = insight if insight.get("tags") and insight.get("lesson") else fallback_insight(batch[idx])
             seen.add(idx)
     assert len(seen) == len(batch), "Incomplete AI summaries"
 assert GENERATION_STATUS["mode"] == "ai" and GENERATION_STATUS["error"] is None

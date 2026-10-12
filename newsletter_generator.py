@@ -77,6 +77,21 @@ def generate_newsletter_text(items: List[ContentItem], week_info: dict = None) -
             lines.append(f"💬 {display_text}")
             lines.append("")
 
+        insight = item.insight or {}
+        tags = " · ".join(insight.get("tags", []))
+        if tags:
+            lines.append(f"🏷️ 배울 포인트: {tags}")
+        if insight.get("strength"):
+            lines.append(f"✅ 확인된 강점: {insight['strength']}")
+        if insight.get("customer_signal") and insight["customer_signal"] != "고객 반응 미확인":
+            lines.append(f"👀 캠퍼 반응: {insight['customer_signal']}")
+        if insight.get("lesson"):
+            lines.append(f"🎯 운영자가 배울 점: {insight['lesson']}")
+        if insight.get("apply"):
+            lines.append(f"🛠️ 적용 전 확인: {insight['apply']}")
+        if any(insight.get(key) for key in ("strength", "customer_signal", "lesson", "apply")):
+            lines.append("")
+
         lines.append(f"🔗 {item.url}")
         lines.append("")
         lines.append("ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ")
@@ -125,7 +140,7 @@ def generate_newsletter_json(
         )
     return {
         "quality": {
-            "editorial_version": 3,
+            "editorial_version": 4,
             "target_items": TARGET_ITEMS,
             "target_candidates": TARGET_CANDIDATES,
             "items_shortfall": max(0, TARGET_ITEMS - len(items)),

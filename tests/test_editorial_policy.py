@@ -4,8 +4,8 @@ import json
 from datetime import datetime
 from collectors.base import ContentItem
 from ai_filter import _balance_items, _is_hard_rejected, prepare_replacement_candidates
-from editorial_policy import same_article, evidence_summary
-from newsletter_generator import get_week_info, generate_newsletter_json
+from editorial_policy import same_article, evidence_summary, fallback_insight, normalize_insight
+from newsletter_generator import get_week_info, generate_newsletter_json, generate_newsletter_text
 
 def review(i):
     return ContentItem(
@@ -73,6 +73,26 @@ class EditorialTests(unittest.TestCase):
         self.assertIn("확인된 자료 발췌:", summary)
         self.assertIn("운영 적용 제안:", summary)
         self.assertNotIn("매출 상승", summary)
+
+    def test_structured_insight_names_the_lesson(self):
+        insight = fallback_insight(review(1))
+        self.assertTrue(insight["tags"])
+        self.assertEqual(insight["customer_signal"], "고객 반응 미확인")
+        self.assertIn("적용", insight["lesson"])
+
+    def test_model_insight_is_normalized_for_output(self):
+        item = review(1)
+        item.insight = normalize_insight({
+            "tags": ["시설관리", "고객", "없는 태그"],
+            "strength": "개별 시설과 사이트 동선을 함께 안내",
+            "customer_signal": "화장실 접근성이 좋았다는 언급",
+            "lesson": "시설 차이를 예약 전에 보여주는 점을 배울 수 있습니다.",
+            "apply": "사이트별 관리 부담과 안내 방식을 확인합니다.",
+        })
+        text = generate_newsletter_text([item], get_week_info(datetime(2026, 9, 21)))
+        self.assertIn("🏷️ 배울 포인트: 시설 · 고객경험", text)
+        self.assertIn("🎯 운영자가 배울 점:", text)
+        self.assertIn("🛠️ 적용 전 확인:", text)
 
     def test_shortfall_is_visible(self):
         edition = generate_newsletter_json([review(1)], get_week_info(datetime(2026, 9, 21)), [])

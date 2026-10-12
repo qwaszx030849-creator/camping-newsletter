@@ -189,6 +189,7 @@ def save_updated_newsletter(data: Dict[str, Any], source_path: Path) -> Dict[str
                 summary=item.get("summary", ""),
                 category=item.get("category", ""),
                 score=float(item.get("score") or 0),
+                insight=item.get("insight", {}),
             )
             for item in data["items"]
         ]

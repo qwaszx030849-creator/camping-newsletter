@@ -1,7 +1,7 @@
 """
 Base collector class for content collection
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 import logging
@@ -22,6 +22,7 @@ class ContentItem:
     category: str = ""
     score: float = 0.0  # AI relevance score
     evidence_basis: str = "search_excerpt"
+    insight: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -33,7 +34,8 @@ class ContentItem:
             "published_date": self.published_date.isoformat() if self.published_date else None,
             "category": self.category,
             "score": self.score,
-            "evidence_basis": self.evidence_basis
+            "evidence_basis": self.evidence_basis,
+            "insight": self.insight,
         }
 
 
