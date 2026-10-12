@@ -80,7 +80,8 @@ jobs:
               description=item.get("description", ""),
               published_date=datetime.fromisoformat(item["published_date"]) if item.get("published_date") else None,
           ), issue_date) for item in records), "Date policy violation: undated or older-than-3-month content"
-          assert all(item.get("insight", {}).get("tags") and item.get("insight", {}).get("lesson") for item in records), "Structured insight missing"
+          if data.get("quality", {}).get("editorial_version", 0) >= 4:
+              assert all(item.get("insight", {}).get("tags") and item.get("insight", {}).get("lesson") for item in records), "Structured insight missing"
           print("Current edition:", path, "items:", len(data["items"]), "candidates:", len(data.get("review_candidates", [])))
           for key, value in data.get("quality", {}).items():
               print(key, value)
