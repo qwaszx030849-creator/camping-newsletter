@@ -128,7 +128,17 @@ def generate_newsletter_json(
         week_info = get_week_info()
     
     from ai_filter import GENERATION_STATUS
-    from editorial_policy import TARGET_ITEMS, TARGET_CANDIDATES, is_recent_article, article_cutoff
+    from editorial_policy import (
+        TARGET_ITEMS, TARGET_CANDIDATES, is_recent_article, article_cutoff,
+        fallback_insight, normalize_insight,
+    )
+    for item in list(items) + list(review_candidates or []):
+        normalized = normalize_insight(item.insight)
+        item.insight = (
+            normalized
+            if normalized.get("tags") and normalized.get("lesson")
+            else fallback_insight(item)
+        )
     issue_date = datetime.strptime(week_info["date"], "%Y-%m-%d")
     invalid_dates = [
         item.title for item in list(items) + list(review_candidates or [])
