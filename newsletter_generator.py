@@ -77,7 +77,7 @@ def generate_newsletter_text(items: List[ContentItem], week_info: dict = None) -
             lines.append(f"💬 {display_text}")
             lines.append("")
 
-        insight = item.insight or {}
+        insight = item.insight if isinstance(item.insight, dict) else {}
         tags = " · ".join(insight.get("tags", []))
         if tags:
             lines.append(f"🏷️ 배울 포인트: {tags}")
