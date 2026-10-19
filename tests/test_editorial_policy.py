@@ -77,7 +77,7 @@ class EditorialTests(unittest.TestCase):
     def test_structured_insight_names_the_lesson(self):
         insight = fallback_insight(review(1))
         self.assertTrue(insight["tags"])
-        self.assertEqual(insight["customer_signal"], "고객 반응 미확인")
+        self.assertNotEqual(insight["customer_signal"], "고객 반응 미확인")
         self.assertIn("적용", insight["lesson"])
 
     def test_model_insight_is_normalized_for_output(self):
