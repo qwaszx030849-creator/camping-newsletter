@@ -264,7 +264,7 @@ def _has_specific_insight(insight: dict) -> bool:
         "후기에서 확인된 사실과 편집자의 적용 제안을 나누어 검토합니다.",
         "원문에서 확인되는 운영 사례",
     )
-    return not any(text in str(insight.get(key, "")) for key in generic for key in ("strength", "lesson"))
+    return not any(phrase in str(insight.get(key, "")) for phrase in generic for key in ("strength", "lesson"))
 
 
 def _format_content_list(items: List[ContentItem]) -> str:
