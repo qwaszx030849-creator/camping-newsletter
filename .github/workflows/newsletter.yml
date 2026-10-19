@@ -19,6 +19,12 @@ on:
     - cron: '23 1 * * 1'   # 월 10:23 KST - 3차 백업
     - cron: '37 21 * * 1'  # 화 06:37 KST - 월요일 전체 누락 대비
   workflow_dispatch:  # 수동 실행도 가능
+    inputs:
+      force:
+        description: '현재 주차 초안을 AI로 다시 생성'
+        required: false
+        default: false
+        type: boolean
 
 # 동일 주차 중복 실행 방지
 concurrency:
@@ -57,7 +63,11 @@ jobs:
           NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
           NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
         run: |
-          python main.py --skip-send
+          FORCE_FLAG=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force }}" = "true" ]; then
+            FORCE_FLAG="--force"
+          fi
+          python main.py --skip-send $FORCE_FLAG
 
       - name: Verify current edition and report quality
         run: |
