@@ -90,9 +90,10 @@ class EditorialTests(unittest.TestCase):
             "apply": "사이트별 관리 부담과 안내 방식을 확인합니다.",
         })
         text = generate_newsletter_text([item], get_week_info(datetime(2026, 9, 21)))
-        self.assertIn("🏷️ 배울 포인트: 시설 · 고객경험", text)
-        self.assertIn("🎯 운영자가 배울 점:", text)
-        self.assertIn("🛠️ 적용 전 확인:", text)
+        self.assertIn("💡 참고할 부분:", text)
+        self.assertNotIn("확인된 강점", text)
+        self.assertNotIn("운영자가 배울 점", text)
+        self.assertNotIn("적용 전 확인", text)
 
     def test_model_insight_can_be_a_json_string(self):
         raw = '{"tags":["시설"],"strength":"개별 샤워실","lesson":"동선과 관리 기준을 함께 설계할 수 있습니다.","apply":"청소 주기를 확인합니다."}'

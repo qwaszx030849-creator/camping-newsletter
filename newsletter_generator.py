@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 import os
 import json
+import re
 from collectors.base import ContentItem
 from config import NEWSLETTER_TITLE_PREFIX, OUTPUT_DIR, ARCHIVE_DIR
 
@@ -37,6 +38,32 @@ def get_week_info(date: datetime = None) -> dict:
         "date": date.strftime("%Y-%m-%d"),
         "display": f"{year}년 {month}월 {week_of_month}주차"
     }
+
+
+def compact_reference(item: ContentItem, limit: int = 140) -> str:
+    """Return one concise, article-specific reference point for the issue."""
+    insight = item.insight if isinstance(item.insight, dict) else {}
+    candidates = [
+        insight.get("lesson"),
+        insight.get("strength"),
+        item.summary,
+        item.description,
+    ]
+    labels = re.compile(
+        r"^(?:확인된 자료 발췌|운영 적용 제안|확인된 강점|운영자가 배울 점|"
+        r"적용 전 확인|캠퍼 반응)\s*:\s*"
+    )
+    for value in candidates:
+        text = re.sub(r"\s+", " ", str(value or "")).strip()
+        text = labels.sub("", text).strip()
+        if not text:
+            continue
+        sentences = re.split(r"(?<=[.!?。！？])\s+", text)
+        text = " ".join(sentences[:2]).strip()
+        if len(text) > limit:
+            text = text[:limit].rsplit(" ", 1)[0].rstrip(".,;: ") + "…"
+        return text
+    return ""
 
 
 def generate_newsletter_text(items: List[ContentItem], week_info: dict = None) -> str:
@@ -71,25 +98,9 @@ def generate_newsletter_text(items: List[ContentItem], week_info: dict = None) -
         lines.append(f"📌 {i}. {item.title}")
         lines.append("")
 
-        # AI 요약이 있으면 요약, 없으면 description
-        display_text = item.summary if item.summary else item.description
-        if display_text:
-            lines.append(f"💬 {display_text}")
-            lines.append("")
-
-        insight = item.insight if isinstance(item.insight, dict) else {}
-        tags = " · ".join(insight.get("tags", []))
-        if tags:
-            lines.append(f"🏷️ 배울 포인트: {tags}")
-        if insight.get("strength"):
-            lines.append(f"✅ 확인된 강점: {insight['strength']}")
-        if insight.get("customer_signal") and insight["customer_signal"] != "고객 반응 미확인":
-            lines.append(f"👀 캠퍼 반응: {insight['customer_signal']}")
-        if insight.get("lesson"):
-            lines.append(f"🎯 운영자가 배울 점: {insight['lesson']}")
-        if insight.get("apply"):
-            lines.append(f"🛠️ 적용 전 확인: {insight['apply']}")
-        if any(insight.get(key) for key in ("strength", "customer_signal", "lesson", "apply")):
+        reference = compact_reference(item)
+        if reference:
+            lines.append(f"💡 참고할 부분: {reference}")
             lines.append("")
 
         lines.append(f"🔗 {item.url}")
