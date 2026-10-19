@@ -3,7 +3,7 @@ from unittest.mock import patch, mock_open
 import json
 from datetime import datetime
 from collectors.base import ContentItem
-from ai_filter import _balance_items, _is_hard_rejected, prepare_replacement_candidates
+from ai_filter import _balance_items, _is_hard_rejected, _parse_json_response, prepare_replacement_candidates
 from editorial_policy import same_article, evidence_summary, fallback_insight, normalize_insight
 from newsletter_generator import get_week_info, generate_newsletter_json, generate_newsletter_text
 
@@ -93,6 +93,11 @@ class EditorialTests(unittest.TestCase):
         self.assertIn("🏷️ 배울 포인트: 시설 · 고객경험", text)
         self.assertIn("🎯 운영자가 배울 점:", text)
         self.assertIn("🛠️ 적용 전 확인:", text)
+
+    def test_json_parser_normalizes_stringified_records(self):
+        response = '[{"index": 0, "summary": "정상"}, "{\\"index\\": 1, \\"summary\\": \\"문자열 객체\\"}", "무시"]'
+        parsed = _parse_json_response(response)
+        self.assertEqual([item["index"] for item in parsed], [0, 1])
 
     def test_shortfall_is_visible(self):
         edition = generate_newsletter_json([review(1)], get_week_info(datetime(2026, 9, 21)), [])

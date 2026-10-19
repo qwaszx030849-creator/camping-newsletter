@@ -210,7 +210,22 @@ def _parse_json_response(response_text: str) -> list:
         try:
             parsed, _ = decoder.raw_decode(response_text[match.start():])
             if isinstance(parsed, list):
-                return parsed
+                # Claude may occasionally serialize each object as a JSON
+                # string inside the array. Normalize those records here so a
+                # harmless formatting variation cannot abort the pipeline.
+                records = []
+                for value in parsed:
+                    if isinstance(value, dict):
+                        records.append(value)
+                        continue
+                    if isinstance(value, str):
+                        try:
+                            decoded = json.loads(value)
+                        except (TypeError, json.JSONDecodeError):
+                            continue
+                        if isinstance(decoded, dict):
+                            records.append(decoded)
+                return records
         except json.JSONDecodeError:
             continue
     print("    JSON parsing error: valid JSON array not found")
