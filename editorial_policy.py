@@ -1,4 +1,5 @@
 """Editorial rules shared by collection, selection and review."""
+import json
 import re
 import calendar
 from datetime import date, datetime, timedelta, timezone
@@ -66,6 +67,11 @@ def fallback_insight(item):
 
 def normalize_insight(raw):
     """Normalize model output so the dashboard and Kakao text stay predictable."""
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (TypeError, json.JSONDecodeError):
+            return {}
     if not isinstance(raw, dict):
         return {}
     aliases = {

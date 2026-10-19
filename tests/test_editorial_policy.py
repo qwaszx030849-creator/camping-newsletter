@@ -94,6 +94,12 @@ class EditorialTests(unittest.TestCase):
         self.assertIn("🎯 운영자가 배울 점:", text)
         self.assertIn("🛠️ 적용 전 확인:", text)
 
+    def test_model_insight_can_be_a_json_string(self):
+        raw = '{"tags":["시설"],"strength":"개별 샤워실","lesson":"동선과 관리 기준을 함께 설계할 수 있습니다.","apply":"청소 주기를 확인합니다."}'
+        insight = normalize_insight(raw)
+        self.assertEqual(insight["tags"], ["시설"])
+        self.assertIn("동선", insight["lesson"])
+
     def test_json_parser_normalizes_stringified_records(self):
         response = '[{"index": 0, "summary": "정상"}, "{\\"index\\": 1, \\"summary\\": \\"문자열 객체\\"}", "무시"]'
         parsed = _parse_json_response(response)
