@@ -449,6 +449,12 @@ _SOURCE_BONUS = {
 def _classify_category(item: ContentItem) -> str:
     """콘텐츠 카테고리 자동 분류"""
     text = f"{item.title} {item.description}".lower()
+    if any(w in text for w in ["매출", "수익", "예약률", "객단가", "재방문율", "비수기 전략"]):
+        return "매출전략"
+    if any(w in text for w in ["시장", "동향", "트렌드", "통계", "산업", "성장", "인구", "데이터", "조사", "설문"]):
+        return "산업동향"
+    if any(w in text for w in ["마케팅", "인스타", "플레이스", "상위노출", "블로그", "sns", "홍보"]):
+        return "마케팅"
     if any(w in text for w in ["할로윈", "크리스마스", "어린이날", "추석 행사"]):
         return "시즌이벤트"
     if any(w in text for w in ["반려견", "애견", "울타리"]):
@@ -467,12 +473,6 @@ def _classify_category(item: ContentItem) -> str:
         return "위생관리"
     if any(w in text for w in ["침수", "배수로", "분전함", "누전", "대피로", "사면"]):
         return "시설안전"
-    if any(w in text for w in ["매출", "수익", "예약률", "객단가", "재방문율", "비수기 전략"]):
-        return "매출전략"
-    if any(w in text for w in ["시장", "동향", "트렌드", "통계", "산업", "성장", "인구", "데이터", "조사", "설문"]):
-        return "산업동향"
-    if any(w in text for w in ["마케팅", "인스타", "플레이스", "상위노출", "블로그", "sns", "홍보"]):
-        return "마케팅"
     if any(w in text for w in ["후기", "재방문", "친절", "청결", "아이", "수영장", "체험", "애견", "반려견", "사이트 간격"]):
         return "후기인사이트"
     if any(w in text for w in ["오버부킹", "배상책임", "배상", "위생", "원산지", "단속", "예약 취소"]):
@@ -589,7 +589,12 @@ def _is_hard_rejected(item: ContentItem) -> bool:
     if item.source in ["네이버 뉴스", "구글 뉴스"]:
         # 제목에 캠핑 관련 단어가 반드시 있어야 함
         title_has_camping = any(w in title for w in camping_words)
-        if not title_has_camping and not has_lodging_data:
+        industry_topic_words = [
+            "캠핑 인구", "캠핑 시장", "캠핑 산업", "캠핑 트렌드",
+            "야영장 등록", "글램핑 시장", "숙박업 데이터",
+        ]
+        title_has_industry_topic = any(w in title for w in industry_topic_words)
+        if not title_has_camping and not has_lodging_data and not title_has_industry_topic:
             return True
 
     # 캠핑장 운영과 무관한 주제 (캠핑장이 언급만 되는 경우)
@@ -817,7 +822,10 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
     business_categories = {"매출전략", "산업동향", "마케팅"}
 
     def selection_category(item: ContentItem) -> str:
-        return item.category if item.category in known_categories else _classify_category(item)
+        inferred = _classify_category(item)
+        if inferred in business_categories or item.category in business_categories:
+            return inferred
+        return item.category if item.category in known_categories else inferred
 
     def is_review_like(item: ContentItem) -> bool:
         category = selection_category(item)
@@ -873,8 +881,7 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
 
     def add(item: ContentItem) -> None:
         nonlocal review_count
-        if item.category not in known_categories:
-            item.category = selection_category(item)
+        item.category = selection_category(item)
         selected.append(item)
         publisher = publisher_key(item)
         publishers[publisher] = publishers.get(publisher, 0) + 1

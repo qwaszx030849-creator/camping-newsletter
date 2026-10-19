@@ -3,7 +3,7 @@ from unittest.mock import patch, mock_open
 import json
 from datetime import datetime
 from collectors.base import ContentItem
-from ai_filter import _balance_items, _is_hard_rejected, _parse_json_response, prepare_replacement_candidates
+from ai_filter import _balance_items, _classify_category, _is_hard_rejected, _parse_json_response, prepare_replacement_candidates
 from editorial_policy import same_article, evidence_summary, fallback_insight, normalize_insight
 from newsletter_generator import get_week_info, generate_newsletter_json, generate_newsletter_text
 
@@ -42,8 +42,21 @@ class EditorialTests(unittest.TestCase):
         ) for i in range(6)]
         selected = _balance_items(reviews + business, reviews + business, 10)
         categories = [item.category for item in selected]
-        self.assertGreaterEqual(categories.count("산업동향"), 2)
+        self.assertGreaterEqual(sum(categories.count(category) for category in ("매출전략", "산업동향", "마케팅")), 2)
         self.assertLessEqual(categories.count("후기인사이트"), 5)
+
+    def test_business_signals_override_generic_ai_category(self):
+        item = ContentItem(
+            title="캠핑 인구와 시장 동향 통계",
+            url="https://example.com/trend",
+            source="네이버 뉴스",
+            description="캠핑 인구 변화와 시장 동향을 조사한 통계 자료입니다. 예약 수요 변화를 운영 판단에 참고할 수 있고, 실제 수요와 시설 공급의 차이를 함께 점검할 수 있는 자료입니다.",
+            category="리스크관리",
+            published_date=datetime(2026, 9, 15),
+        )
+        self.assertEqual(_classify_category(item), "산업동향")
+        self.assertFalse(_is_hard_rejected(item))
+        self.assertEqual(_balance_items([item], [item], 1)[0].category, "산업동향")
 
     def test_shared_amenities_are_not_duplicates(self):
         self.assertFalse(same_article(review(1), review(9)))
