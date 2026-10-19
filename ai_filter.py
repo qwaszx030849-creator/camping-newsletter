@@ -161,6 +161,30 @@ insight 작성 규칙:
 ```"""
 
 
+INSIGHT_PROMPT = """아래 캠핑장 콘텐츠에서 운영자가 배울 점만 추려 구조화해주세요.
+기사·후기에서 확인되는 구체적인 시설, 동선, 응대, 이벤트, 고객 반응을 근거로 작성하고, 추측한 매출·예약률은 넣지 마세요.
+
+모든 항목에 대해 반드시 아래 JSON 객체를 하나씩 반환하세요. JSON 배열 외의 문장은 쓰지 마세요.
+{{
+  "index": 0,
+  "insight": {{
+    "tags": ["운영", "시설"],
+    "strength": "원문에서 확인되는 구체적인 강점",
+    "customer_signal": "캠퍼가 실제로 좋았거나 불편했다고 언급한 점. 없으면 고객 반응 미확인",
+    "lesson": "이 사례에서 다른 캠핑장 운영자가 배울 수 있는 구체적인 이유",
+    "apply": "인력·비용·동선·정원·안전·예약 조건 중 확인할 적용 조건"
+  }}
+}}
+
+작성 금지:
+- "원문에서 확인되는 운영 사례", "후기에서 확인된 사실을 검토"처럼 내용을 반복하는 일반 문구
+- 자료에 없는 성과나 고객 반응
+
+## 콘텐츠 목록
+{content_list}
+"""
+
+
 def _call_claude(prompt: str) -> str:
     """Claude API 호출 (Sonnet → Haiku 자동 폴백)"""
     client = _get_client()
@@ -230,6 +254,17 @@ def _parse_json_response(response_text: str) -> list:
             continue
     print("    JSON parsing error: valid JSON array not found")
     return []
+
+
+def _has_specific_insight(insight: dict) -> bool:
+    """Reject structurally valid but generic fallback insight text."""
+    if not isinstance(insight, dict) or not insight.get("tags") or not insight.get("lesson"):
+        return False
+    generic = (
+        "후기에서 확인된 사실과 편집자의 적용 제안을 나누어 검토합니다.",
+        "원문에서 확인되는 운영 사례",
+    )
+    return not any(text in str(insight.get(key, "")) for key in generic for key in ("strength", "lesson"))
 
 
 def _format_content_list(items: List[ContentItem]) -> str:
@@ -965,7 +1000,7 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
             if 0 <= idx < len(filtered):
                 filtered[idx].summary = s.get("summary", "")
                 insight = normalize_insight(s.get("insight"))
-                if insight.get("tags") and insight.get("lesson"):
+                if _has_specific_insight(insight):
                     filtered[idx].insight = insight
         print(f"    요약 생성 완료: {sum(1 for f in filtered if f.summary)}개")
     else:
@@ -974,11 +1009,31 @@ def filter_content(items: List[ContentItem], count: int = NEWSLETTER_ITEMS_COUNT
             if not item.summary and item.description:
                 item.summary = evidence_summary(item)
 
+    missing_insights = [item for item in filtered if not _has_specific_insight(item.insight)]
+    if missing_insights:
+        print(f"\n  [Step 3] 운영 인사이트 보강 ({len(missing_insights)}개)...")
+        insight_prompt = INSIGHT_PROMPT.format(
+            content_list=_format_content_list(missing_insights)
+        )
+        insight_response = _call_claude(insight_prompt)
+        insight_records = _parse_json_response(insight_response)
+        for record in insight_records:
+            idx = record.get("index", -1)
+            if 0 <= idx < len(missing_insights):
+                raw_insight = record.get("insight", record)
+                insight = normalize_insight(raw_insight)
+                if _has_specific_insight(insight):
+                    missing_insights[idx].insight = insight
+        print(
+            f"    운영 인사이트 보강 완료: "
+            f"{sum(1 for item in filtered if _has_specific_insight(item.insight))}/{len(filtered)}개"
+        )
+
     for item in filtered:
         if not item.summary:
             item.summary = evidence_summary(item)
             GENERATION_STATUS.update(mode="evidence_fallback", error="incomplete_summaries")
-        if not item.insight:
+        if not _has_specific_insight(item.insight):
             item.insight = fallback_insight(item)
 
     print("\n" + "-" * 60)
