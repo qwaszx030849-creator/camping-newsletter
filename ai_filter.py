@@ -449,7 +449,10 @@ _SOURCE_BONUS = {
 def _classify_category(item: ContentItem) -> str:
     """콘텐츠 카테고리 자동 분류"""
     text = f"{item.title} {item.description}".lower()
-    if any(w in text for w in ["매출", "수익", "예약률", "객단가", "재방문율", "비수기 전략"]):
+    if any(w in text for w in [
+        "매출", "예약률", "객단가", "재방문율", "비수기 전략",
+        "영업이익", "순이익", "수익 구조",
+    ]):
         return "매출전략"
     if any(w in text for w in [
         "캠핑 시장", "숙박 시장", "시장 동향", "시장 규모", "시장 변화",
@@ -457,7 +460,10 @@ def _classify_category(item: ContentItem) -> str:
         "통계", "성장", "인구", "데이터", "조사", "설문",
     ]):
         return "산업동향"
-    if any(w in text for w in ["마케팅", "인스타", "플레이스", "상위노출", "블로그", "sns", "홍보"]):
+    if any(w in text for w in [
+        "마케팅", "인스타", "플레이스", "상위노출", "블로그 마케팅",
+        "검색 최적화", "sns", "홍보",
+    ]):
         return "마케팅"
     if any(w in text for w in ["할로윈", "크리스마스", "어린이날", "추석 행사"]):
         return "시즌이벤트"

@@ -58,6 +58,13 @@ class EditorialTests(unittest.TestCase):
         self.assertFalse(_is_hard_rejected(item))
         self.assertEqual(_balance_items([item], [item], 1)[0].category, "산업동향")
 
+    def test_review_word_blog_does_not_become_marketing(self):
+        item = review(30)
+        item.title = "동해 오션뷰 캠핑장 추천 솔직후기"
+        item.description = "사이트 간격과 매너타임을 직접 이용한 후기입니다. 다른 블로그 후기보니 조용한 운영이 장점이었습니다."
+        item.category = "마케팅"
+        self.assertNotEqual(_classify_category(item), "마케팅")
+
     def test_shared_amenities_are_not_duplicates(self):
         self.assertFalse(same_article(review(1), review(9)))
 
