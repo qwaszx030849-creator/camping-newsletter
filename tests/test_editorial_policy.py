@@ -60,6 +60,16 @@ class EditorialTests(unittest.TestCase):
             item.title = title
             self.assertTrue(_is_hard_rejected(item))
 
+    def test_game_and_simulator_content_is_excluded(self):
+        item = ContentItem(
+            title="캠핑장 매점 운영 시뮬레이터 게임 첫인상",
+            url="https://example.com/game",
+            source="네이버 블로그",
+            description="캠핑장을 소재로 한 게임의 첫인상과 게임 특징을 소개하는 글입니다. 운영 사례가 아닌 게임 콘텐츠입니다.",
+            published_date=datetime(2026, 10, 10),
+        )
+        self.assertTrue(_is_hard_rejected(item))
+
     def test_halloween_is_allowed(self):
         item = review(1)
         item.title = "숲속 캠핑장 할로윈 체험 후기"

@@ -349,6 +349,7 @@ _HARD_REJECT_TITLE = [
     "정비업창업", "프랜차이즈",
     # 특정 홍보성 사례
     "산으로간니모", "홍보글", "홍보 글",
+    "시뮬레이터", "게임 특징", "게임 첫인상",
     "고향사랑기부", "지역 농특산물", "공동체 활력", "패트롤",
     # 6차 산업/농업
     "6차 산업", "관광농원", "농막",
@@ -524,7 +525,8 @@ def _is_hard_rejected(item: ContentItem) -> bool:
                 "단독 예약", "독점 예약", "플랫폼 입점", "상판", "시공업체",
                 "무료 노지", "노지 캠핑", "제휴 마케팅", "수수료를 제공",
                 "제공받을", "클라이언트", "노출하는 사람들", "요잇당",
-                "스마트플레이스 활용 실전 전략", "후기이벤트"]
+                "스마트플레이스 활용 실전 전략", "후기이벤트", "시뮬레이터",
+                "게임 특징", "게임 첫인상"]
     if any(term in combined for term in excluded):
         return True
     if any(term in title for term in ("차박지", "캠핑카", "전동 화물", "추천부탁", "가능한가요", "어떤 곳이 좋을까요")):
@@ -819,8 +821,14 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
 
     def is_review_like(item: ContentItem) -> bool:
         category = selection_category(item)
-        return category == "후기인사이트" or (
-            category not in business_categories and _has_review_insight(item)
+        if category == "후기인사이트":
+            return True
+        case_categories = {"반려견운영", "키즈/체험", "물놀이안전", "고객관리"}
+        review_markers = ("후기", "추천", "다녀", "방문", "솔직", "이용")
+        is_blog_or_cafe = item.source == "네이버 블로그" or item.source.startswith("카페:")
+        return category not in business_categories and (
+            _has_review_insight(item)
+            or (category in case_categories and is_blog_or_cafe and any(marker in item.title for marker in review_markers))
         )
 
     all_pool = []
