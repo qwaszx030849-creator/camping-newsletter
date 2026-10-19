@@ -22,6 +22,29 @@ class EditorialTests(unittest.TestCase):
         pool = [review(i) for i in range(12)]
         self.assertEqual(len(_balance_items(pool, pool, 10)), 10)
 
+    def test_mixed_pool_prioritizes_business_topics_and_caps_reviews(self):
+        reviews = [review(i) for i in range(6)]
+        business_titles = [
+            "캠핑장 매출 데이터 운영 트렌드",
+            "야영장 소비 트렌드와 예약률 변화 조사",
+            "숙박업 고객 데이터로 보는 재방문 지표",
+            "오토캠핑장 비수기 수요와 객단가 분석",
+            "캠핑 산업 성장률과 운영 전략 보고서",
+            "캠핑장 예약 채널별 매출 비교 자료",
+        ]
+        business = [ContentItem(
+            title=business_titles[i],
+            url=f"https://news.example.com/{i}",
+            source="네이버 뉴스",
+            description="캠핑장 매출과 예약률을 데이터로 분석한 운영 사례와 소비 트렌드 조사 결과입니다. 실제 운영 지표와 고객 수요 변화를 함께 비교할 수 있는 자료입니다.",
+            category="산업동향",
+            published_date=datetime(2026, 9, 15),
+        ) for i in range(6)]
+        selected = _balance_items(reviews + business, reviews + business, 10)
+        categories = [item.category for item in selected]
+        self.assertGreaterEqual(categories.count("산업동향"), 2)
+        self.assertLessEqual(categories.count("후기인사이트"), 5)
+
     def test_shared_amenities_are_not_duplicates(self):
         self.assertFalse(same_article(review(1), review(9)))
 

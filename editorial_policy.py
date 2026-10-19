@@ -25,6 +25,18 @@ REVIEW_QUERIES = [
     "캠핑장 장박 운영 후기", "캠핑장 평일 재방문",
     "캠핑장 매점 운영 후기", "캠핑장 체크인 안내 후기",
 ]
+OPERATOR_QUERIES = [
+    "캠핑장 매출 운영 사례",
+    "캠핑장 예약률 높인 사례",
+    "캠핑장 비수기 매출 전략",
+    "캠핑장 객단가 올리는 운영",
+    "캠핑장 리뷰 관리 운영",
+    "캠핑장 고객 데이터 분석",
+    "캠핑장 시설 투자 효과",
+    "캠핑장 운영 트렌드",
+    "숙박업 매출 데이터 마케팅",
+    "야영장 소비 트렌드 통계",
+]
 SEASON_QUERIES = {
     "spring": ["캠핑장 봄 체험 후기", "캠핑장 어린이날 행사 후기"],
     "summer": ["캠핑장 수영장 관리 후기", "캠핑장 물놀이 체험 후기", "캠핑장 우천 동선 후기"],
@@ -35,7 +47,7 @@ SEASON_QUERIES = {
 
 def review_queries(month):
     season = "spring" if month in (3, 4, 5) else "summer" if month in (6, 7, 8) else "autumn" if month in (9, 10, 11) else "winter"
-    return REVIEW_QUERIES + SEASON_QUERIES[season]
+    return REVIEW_QUERIES + OPERATOR_QUERIES + SEASON_QUERIES[season]
 
 
 def insight_tags(item):

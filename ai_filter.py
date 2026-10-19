@@ -76,10 +76,13 @@ FILTER_PROMPT = """당신은 캠핑장 담당 MD입니다. 캠핑장 사장님(�
 
 ### 최종 구성 원칙
 - 정부/제도/날씨성 콘텐츠는 최종 1~2개 이하로 제한
-- 캠퍼 후기와 캠지기 운영 사례를 7~9개 우선 선별. 다른 캠핑장의 같은 주제 후기는 서로 다른 운영 방식을 배우므로 허용
+- 캠퍼 후기·캠핑장 사례는 최대 4~5개로 제한하고, 같은 주제 후기가 과도하게 몰리지 않게 함
+- 매출·예약률·객단가·재방문율처럼 성과를 측정하거나 개선하는 자료를 2개 이상 우선 확보
+- 캠핑 산업 동향·소비 트렌드·숙박업 데이터·운영 트렌드 자료를 1~2개 포함
+- 시설·안전·고객관리·시즌운영 자료로 나머지를 채워 한 호에 서로 다른 의사결정 소재를 제공
 - 할로윈, 어린이 체험, 수영장, 재방문 이유, 청결, 매너타임, 반려견, 공간 배치 사례를 폭넓게 포함
 - 특정 캠핑장 사례는 지역명이 있어도 허용. 지역 한정 지원사업과 혼동하지 말 것
-- 데이터 기반 마케팅·운영 트렌드는 근거가 명확할 때만 0~2개. 분량을 채우려고 억지로 포함하지 말 것
+- 데이터 기반 마케팅·운영 트렌드는 광고가 아닌 조사·통계·실제 운영 사례일 때만 포함
 - 후기 요약에는 칭찬이나 감상 대신 시설·동선·응대·청결 등 적용 포인트를 명시
 - 단순 소개가 아니라 운영자가 이번 주에 실행할 행동을 설명할 수 있는 콘텐츠만 선택
 
@@ -116,7 +119,7 @@ FILTER_PROMPT = """당신은 캠핑장 담당 MD입니다. 캠핑장 사장님(�
 ]
 ```
 
-카테고리: 시즌운영, 시설안전, 물놀이안전, 위생관리, 운영노하우, 매출전략, 시설개선, 산업동향, 고객관리, 후기인사이트, 리스크관리 중 택 1"""
+카테고리: 시즌운영, 시설안전, 물놀이안전, 위생관리, 운영노하우, 매출전략, 마케팅, 시설개선, 산업동향, 고객관리, 후기인사이트, 리스크관리 중 택 1"""
 
 
 # ============================================================================
@@ -463,20 +466,20 @@ def _classify_category(item: ContentItem) -> str:
         return "위생관리"
     if any(w in text for w in ["침수", "배수로", "분전함", "누전", "대피로", "사면"]):
         return "시설안전"
+    if any(w in text for w in ["매출", "수익", "예약률", "객단가", "재방문율", "비수기 전략"]):
+        return "매출전략"
+    if any(w in text for w in ["시장", "동향", "트렌드", "통계", "산업", "성장", "인구", "데이터", "조사", "설문"]):
+        return "산업동향"
+    if any(w in text for w in ["마케팅", "인스타", "플레이스", "상위노출", "블로그", "sns", "홍보"]):
+        return "마케팅"
     if any(w in text for w in ["후기", "재방문", "친절", "청결", "아이", "수영장", "체험", "애견", "반려견", "사이트 간격"]):
         return "후기인사이트"
     if any(w in text for w in ["오버부킹", "배상책임", "배상", "위생", "원산지", "단속", "예약 취소"]):
         return "리스크관리"
     if any(w in text for w in ["인허가", "안전점검", "안전기준", "등록 기준", "민원"]):
         return "운영노하우"
-    if any(w in text for w in ["시장", "동향", "트렌드", "통계", "산업", "성장", "인구"]):
-        return "산업동향"
-    if any(w in text for w in ["마케팅", "인스타", "플레이스", "상위노출", "블로그", "sns", "홍보"]):
-        return "마케팅"
     if any(w in text for w in ["시설", "리모델링", "화장실", "샤워", "사이트 조성", "데크"]):
         return "시설개선"
-    if any(w in text for w in ["매출", "수익", "예약률", "재방문", "객단가"]):
-        return "매출전략"
     if any(w in text for w in ["고객", "리뷰", "별점", "불만", "응대", "만족"]):
         return "고객관리"
     return "운영노하우"
@@ -800,13 +803,45 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         "산업동향": 2,
         "매출전략": 2,
         "고객관리": 2,
+        "마케팅": 2,
     }
+
+    known_categories = {
+        "시즌운영", "시설안전", "물놀이안전", "위생관리", "운영노하우",
+        "매출전략", "마케팅", "시설개선", "산업동향", "고객관리",
+        "후기인사이트", "리스크관리", "시즌이벤트", "반려견운영",
+        "키즈/체험", "장박운영",
+    }
+    business_categories = {"매출전략", "산업동향", "마케팅"}
+
+    def selection_category(item: ContentItem) -> str:
+        return item.category if item.category in known_categories else _classify_category(item)
+
+    def is_review_like(item: ContentItem) -> bool:
+        category = selection_category(item)
+        return category == "후기인사이트" or (
+            category not in business_categories and _has_review_insight(item)
+        )
+
+    all_pool = []
+    seen_pool_urls = set()
+    for candidate in list(items) + list(pool):
+        if candidate.url not in seen_pool_urls:
+            all_pool.append(candidate)
+            seen_pool_urls.add(candidate.url)
+    business_available = [
+        candidate for candidate in all_pool
+        if selection_category(candidate) in business_categories
+        and not _is_hard_rejected(candidate)
+    ]
+    review_limit = 5 if len(business_available) >= 2 else count
 
     selected = []
     selected_urls = set()
     source_count = {}
     category_count = {}
     publishers = {}
+    review_count = 0
 
     def can_add(item: ContentItem) -> bool:
         if item.url in selected_urls or _is_hard_rejected(item):
@@ -818,17 +853,20 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         publisher_limit = count if publisher.startswith("cafe.naver.com/") else 2
         if publishers.get(publisher, 0) >= publisher_limit:
             return False
+        if is_review_like(item) and review_count >= review_limit:
+            return False
         source = _source_group(item)
         if source_count.get(source, 0) >= source_limits.get(source, 3):
             return False
-        cat = item.category or _classify_category(item)
+        cat = selection_category(item)
         if category_count.get(cat, 0) >= category_limits.get(cat, default_category_limit):
             return False
         return True
 
     def add(item: ContentItem) -> None:
-        if not item.category or item.category in ["블로그", "커뮤니티"]:
-            item.category = _classify_category(item)
+        nonlocal review_count
+        if item.category not in known_categories:
+            item.category = selection_category(item)
         selected.append(item)
         publisher = publisher_key(item)
         publishers[publisher] = publishers.get(publisher, 0) + 1
@@ -836,6 +874,21 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         source = _source_group(item)
         source_count[source] = source_count.get(source, 0) + 1
         category_count[item.category] = category_count.get(item.category, 0) + 1
+        if is_review_like(item):
+            review_count += 1
+
+    # Keep at least two business/trend pieces whenever eligible material exists.
+    priority_candidates = sorted(
+        business_available,
+        key=lambda candidate: _rule_based_score(candidate),
+        reverse=True,
+    )
+    priority_target = min(2, len(priority_candidates), count)
+    for candidate in priority_candidates:
+        if sum(1 for selected_item in selected if selection_category(selected_item) in business_categories) >= priority_target:
+            break
+        if can_add(candidate):
+            add(candidate)
 
     for item in items:
         if can_add(item):
