@@ -451,7 +451,11 @@ def _classify_category(item: ContentItem) -> str:
     text = f"{item.title} {item.description}".lower()
     if any(w in text for w in ["매출", "수익", "예약률", "객단가", "재방문율", "비수기 전략"]):
         return "매출전략"
-    if any(w in text for w in ["시장", "동향", "트렌드", "통계", "산업", "성장", "인구", "데이터", "조사", "설문"]):
+    if any(w in text for w in [
+        "캠핑 시장", "숙박 시장", "시장 동향", "시장 규모", "시장 변화",
+        "시장 조사", "캠핑 산업", "산업 동향", "캠핑 트렌드", "소비 트렌드",
+        "통계", "성장", "인구", "데이터", "조사", "설문",
+    ]):
         return "산업동향"
     if any(w in text for w in ["마케팅", "인스타", "플레이스", "상위노출", "블로그", "sns", "홍보"]):
         return "마케팅"
