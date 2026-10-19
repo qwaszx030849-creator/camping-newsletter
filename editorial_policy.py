@@ -56,12 +56,53 @@ def insight_tags(item):
 def fallback_insight(item):
     """Return a clearly labelled structure when an AI response is unavailable."""
     tags = insight_tags(item)
+    source = unescape(
+        " ".join(
+            part for part in (
+                getattr(item, "description", ""),
+                getattr(item, "summary", ""),
+            )
+            if part
+        )
+    )
+    fragments = [
+        re.sub(r"\s+", " ", fragment).strip(" /·")
+        for fragment in re.split(r"[\n/]+|(?<=[.!?])\s+", source)
+    ]
+    fragments = [fragment for fragment in fragments if len(fragment) >= 12]
+    observed = next(
+        (
+            fragment for fragment in fragments
+            if any(word in fragment for word in (
+                "화장실", "샤워", "개수대", "사이트", "온수", "청소",
+                "체험", "행사", "매너타임", "체크인", "동선", "응대",
+            ))
+        ),
+        fragments[0] if fragments else getattr(item, "title", "해당 사례"),
+    )[:150]
+    customer_signal = next(
+        (
+            fragment for fragment in fragments
+            if any(word in fragment for word in (
+                "좋", "만족", "편리", "추천", "깨끗", "친절", "불편", "아쉽",
+            ))
+        ),
+        "원문에 구체적인 고객 반응이 없어 반응 미확인",
+    )[:180]
+    if "이벤트" in tags:
+        apply = "참여 연령, 진행 시간, 담당 인력과 우천 대안을 정한 뒤 소규모 체험부터 시험합니다."
+    elif "안전/리스크" in tags:
+        apply = "안내 문구와 현장 점검 기준, 담당자 기록 방식을 먼저 정리합니다."
+    elif "시설" in tags:
+        apply = "시설별 청소·점검 주기와 이용 동선을 현장 기준으로 확인합니다."
+    else:
+        apply = "실제 인력·비용·동선 부담을 확인한 뒤 우리 캠핑장에 적용합니다."
     return {
         "tags": tags,
-        "strength": "원문에서 확인되는 " + "·".join(tags) + " 운영 사례",
-        "customer_signal": "고객 반응 미확인",
-        "lesson": "후기에서 확인된 사실과 편집자의 적용 제안을 나누어 검토합니다.",
-        "apply": "인력·비용·동선·관리 부담을 확인한 뒤 우리 캠핑장 적용 여부를 판단합니다.",
+        "strength": f"{observed}라는 구체적인 {tags[0]} 운영 요소가 확인됩니다.",
+        "customer_signal": customer_signal,
+        "lesson": f"{observed}처럼 {tags[0]} 요소를 고객 경험과 현장 관리 기준으로 연결해 적용해 볼 수 있는 사례입니다.",
+        "apply": apply,
     }
 
 
