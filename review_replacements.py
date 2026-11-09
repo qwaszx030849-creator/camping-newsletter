@@ -110,13 +110,14 @@ def edit_items(
         for i, item in enumerate(items)
         if i not in excluded_indexes and i not in delete_indexes
     }
+    visible_indexes = [i for i in range(len(items)) if i not in set(delete_indexes)]
     candidate_used_urls = set()
     replacements = []
     deletions = []
 
     for item_index in excluded_indexes:
         replacement = None
-        operator_only = item_index < 2
+        operator_only = visible_indexes.index(item_index) < 2
         available = [
             candidate for candidate in candidates
             if candidate.get("url")

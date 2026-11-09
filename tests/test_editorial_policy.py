@@ -112,6 +112,15 @@ class EditorialTests(unittest.TestCase):
         self.assertEqual(edited["items"][1]["category"], "장박운영")
         self.assertEqual(edited["items"][2]["category"], "후기인사이트")
 
+    def test_replacement_keeps_visible_first_slot_operational_after_delete(self):
+        items = [{"title": f"기존 {i}", "url": f"https://example.com/current/{i}", "category": "후기인사이트"} for i in range(1, 4)]
+        candidates = [
+            {"title": "후기 후보", "url": "https://example.com/review", "category": "후기인사이트"},
+            {"title": "운영 기사", "url": "https://example.com/news", "category": "산업동향", "source": "네이버 뉴스"},
+        ]
+        edited = edit_items({"items": items, "review_candidates": candidates}, excluded_numbers=[2], delete_numbers=[1])
+        self.assertEqual(edited["items"][0]["category"], "산업동향")
+
     def test_business_signals_override_generic_ai_category(self):
         item = ContentItem(
             title="캠핑 인구와 시장 동향 통계",
