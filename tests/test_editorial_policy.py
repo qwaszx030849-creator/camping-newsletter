@@ -2,11 +2,11 @@ import unittest
 from unittest.mock import patch, mock_open
 import json
 from datetime import datetime
-from collectors.base import ContentItem
+from collectors.base import BaseCollector, ContentItem
 from ai_filter import _balance_items, _classify_category, _is_hard_rejected, _parse_json_response, prepare_replacement_candidates
 from editorial_policy import same_article, evidence_summary, fallback_insight, normalize_insight
 from newsletter_generator import get_week_info, generate_newsletter_json, generate_newsletter_text
-from review_replacements import edit_items
+from review_replacements import _is_operator_candidate, edit_items
 
 def review(i):
     return ContentItem(
@@ -19,6 +19,27 @@ def review(i):
     )
 
 class EditorialTests(unittest.TestCase):
+    def test_collector_unescapes_html_entities_in_titles(self):
+        self.assertEqual(BaseCollector("test")._clean_text("&quot;캠핑장&quot; &amp; 운영"), '"캠핑장" & 운영')
+
+    def test_review_like_blog_is_not_fixed_operator_candidate(self):
+        review_item = {
+            "title": "[강릉 숙소] 아이와 함께 다녀온 캠핑장",
+            "url": "https://blog.naver.com/reviewer/2",
+            "source": "네이버 블로그",
+            "category": "시설안전",
+            "description": "아이와 함께 여행했고 이용했는데 좋았어요. 화재 예방 안내도 있었습니다.",
+        }
+        operational_item = {
+            "title": "캠핑장 안전 점검 기준",
+            "url": "https://blog.naver.com/operator/1",
+            "source": "네이버 블로그",
+            "category": "시설안전",
+            "summary": "분전함 안전 점검 기준과 체크리스트",
+        }
+        self.assertFalse(_is_operator_candidate(review_item))
+        self.assertTrue(_is_operator_candidate(operational_item))
+
     def test_ten_reviews_are_not_capped_at_four(self):
         pool = [review(i) for i in range(12)]
         self.assertEqual(len(_balance_items(pool, pool, 10)), 10)

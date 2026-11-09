@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 import logging
+import html
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -55,6 +56,8 @@ class BaseCollector:
         import re
         # Remove HTML tags
         clean = re.sub(r'<[^>]+>', '', text)
+        # Naver search responses can contain entities in titles and snippets.
+        clean = html.unescape(clean)
         # Remove extra whitespace
         clean = ' '.join(clean.split())
         return clean.strip()

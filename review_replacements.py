@@ -25,6 +25,10 @@ OPERATOR_CATEGORIES = {
 }
 NEWS_SOURCES = {"네이버 뉴스", "구글 뉴스", "뉴스/제도", "정부지원", "제도/안전"}
 REVIEW_TITLE_MARKERS = ("후기", "추천", "다녀", "방문", "솔직", "예약 방법", "명소", "여행")
+REVIEW_CONTENT_MARKERS = (
+    "아이와 함께", "가족과", "다녀왔", "방문했", "이용했", "좋았", "좋아요", "숙소", "여행",
+    "우리 자리는", "지내는 동안", "이번에 이용", "체크인", "체크아웃", "선택 전", "캠퍼", "캠핑을 다녀",
+)
 OPERATION_MARKERS = (
     "매출", "예약률", "객단가", "비수기", "장박", "동계", "동파", "안전", "소방",
     "전기", "화재", "난방", "운영", "관리", "정책", "기준", "점검", "체크리스트",
@@ -77,10 +81,11 @@ def _is_operator_candidate(item: Dict[str, Any]) -> bool:
         return True
     if any(marker in title for marker in REVIEW_TITLE_MARKERS):
         return False
-    return (
-        category in OPERATOR_CATEGORIES and any(word in text for word in OPERATION_MARKERS)
-        or any(word in text for word in OPERATION_MARKERS)
-    )
+    operation_score = sum(1 for word in OPERATION_MARKERS if word in text)
+    review_score = sum(1 for marker in REVIEW_CONTENT_MARKERS if marker in text)
+    if review_score >= 2 and review_score >= operation_score:
+        return False
+    return category in OPERATOR_CATEGORIES and operation_score > 0
 
 
 def _load_json(path: Path) -> Dict[str, Any]:
