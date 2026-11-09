@@ -71,6 +71,7 @@ FILTER_PROMPT = """당신은 캠핑장 담당 MD입니다. 캠핑장 사장님(�
 - 전국 캠핑장에 적용 가능한 예약/리뷰 관리 노하우
 - 발행 시점의 계절별 운영 전략은 캠핑장 환불/동선/시설 운영 의사결정에 직접 연결될 때만 선별
 - 전국 캠핑장에 공통으로 적용되는 제도/안전/인허가 이슈는 꼭 필요한 공지급만 선별
+- 겨울철 동계 대비, 동파·난방·전기·화재·대설·결빙 대응과 장박 계약·점검·민원 관리 자료
 - 캠핑 산업 동향, 통계, 시장 변화, 운영 트렌드
 - 고객 응대/불만 해결 실전 사례
 
@@ -79,6 +80,7 @@ FILTER_PROMPT = """당신은 캠핑장 담당 MD입니다. 캠핑장 사장님(�
 - 캠퍼 후기·캠핑장 사례는 최대 4~5개로 제한하고, 같은 주제 후기가 과도하게 몰리지 않게 함
 - 매출·예약률·객단가·재방문율처럼 성과를 측정하거나 개선하는 자료를 2개 이상 우선 확보
 - 캠핑 산업 동향·소비 트렌드·숙박업 데이터·운영 트렌드 자료를 1~2개 포함
+- 안전정책·시설안전·동계운영·장박관리 자료를 조건에 맞는 후보가 있으면 2개 이상 포함
 - 시설·안전·고객관리·시즌운영 자료로 나머지를 채워 한 호에 서로 다른 의사결정 소재를 제공
 - 할로윈, 어린이 체험, 수영장, 재방문 이유, 청결, 매너타임, 반려견, 공간 배치 사례를 폭넓게 포함
 - 특정 캠핑장 사례는 지역명이 있어도 허용. 지역 한정 지원사업과 혼동하지 말 것
@@ -101,6 +103,7 @@ FILTER_PROMPT = """당신은 캠핑장 담당 MD입니다. 캠핑장 사장님(�
 - 업체 광고/홍보 (시공업체, 마케팅대행사, CCTV업체, 난로업체 등)
 - 시설 시공·모듈러하우스·카라반 설치 업체가 작성한 성공 사례형 홍보글
 - 특정 브랜드/제품 홍보글 (예: 프롬비 빅팬, 에어바운스 해외직구, 산으로간니모 등)
+- 난방기·전기제품·방한용품 구매 추천 또는 설치 업체 홍보. 단, 제품이 아닌 안전관리 기준·점검 사례는 허용
 - 차박/노지 캠핑
 - 알바/구인 정보
 - 일반 자기계발/경영 일반론
@@ -449,6 +452,18 @@ _SOURCE_BONUS = {
 def _classify_category(item: ContentItem) -> str:
     """콘텐츠 카테고리 자동 분류"""
     text = f"{item.title} {item.description}".lower()
+    if "장박" in text:
+        return "장박운영"
+    if any(w in text for w in [
+        "동계", "겨울철", "동파", "한파", "대설", "결빙", "난방 관리",
+        "겨울 난방", "수도 배관", "겨울철 운영",
+    ]):
+        return "시즌운영"
+    if any(w in text for w in [
+        "안전정책", "안전기준", "안전관리", "안전 점검", "소방 안전",
+        "화재 예방", "사고 예방", "안전사고 대응", "대피로", "전기 안전",
+    ]):
+        return "시설안전"
     if any(w in text for w in [
         "매출", "예약률", "객단가", "재방문율", "비수기 전략",
         "영업이익", "순이익", "수익 구조",
@@ -473,8 +488,6 @@ def _classify_category(item: ContentItem) -> str:
         return "키즈/체험"
     if any(w in text for w in ["매너타임", "소음"]):
         return "고객관리"
-    if "장박" in text:
-        return "장박운영"
     if any(w in text for w in ["장마", "집중호우", "폭염", "태풍", "온열질환", "성수기 대비"]):
         return "시즌운영"
     if any(w in text for w in ["수영장", "물놀이", "익수", "구명조끼"]):
@@ -792,6 +805,7 @@ def _is_low_value_public_notice(item: ContentItem) -> bool:
     useful_terms = [
         "예약 취소", "환불", "오버부킹", "배상", "위생", "원산지",
         "소비자 평가", "만족도", "리뷰", "예약 플랫폼", "시장", "동향", "트렌드",
+        "안전기준", "안전관리", "안전 점검", "화재 예방", "동파", "장박",
     ]
     if any(term in combined for term in useful_terms):
         return False
@@ -813,6 +827,7 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         "후기인사이트": count,
         "운영노하우": count,
         "시즌운영": 2,
+        "장박운영": 2,
         "시설안전": 2,
         "물놀이안전": 1,
         "위생관리": 2,
@@ -830,15 +845,20 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         "키즈/체험", "장박운영",
     }
     business_categories = {"매출전략", "산업동향", "마케팅"}
+    safety_season_categories = {"시설안전", "시즌운영", "장박운영", "리스크관리"}
 
     def selection_category(item: ContentItem) -> str:
         inferred = _classify_category(item)
-        if inferred in business_categories or item.category in business_categories:
+        if inferred in business_categories or inferred in safety_season_categories:
+            return inferred
+        if item.category in business_categories:
             return inferred
         return item.category if item.category in known_categories else inferred
 
     def is_review_like(item: ContentItem) -> bool:
         category = selection_category(item)
+        if category in safety_season_categories:
+            return False
         if category == "후기인사이트":
             return True
         case_categories = {"반려견운영", "키즈/체험", "물놀이안전", "고객관리"}
@@ -860,7 +880,12 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         if selection_category(candidate) in business_categories
         and not _is_hard_rejected(candidate)
     ]
-    review_limit = 5 if len(business_available) >= 2 else count
+    safety_season_available = [
+        candidate for candidate in all_pool
+        if selection_category(candidate) in safety_season_categories
+        and not _is_hard_rejected(candidate)
+    ]
+    review_limit = 5 if len(business_available) >= 2 or len(safety_season_available) >= 2 else count
 
     selected = []
     selected_urls = set()
@@ -911,6 +936,19 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
     priority_target = min(2, len(priority_candidates), count)
     for candidate in priority_candidates:
         if sum(1 for selected_item in selected if selection_category(selected_item) in business_categories) >= priority_target:
+            break
+        if can_add(candidate):
+            add(candidate)
+
+    # Keep safety, winter preparation and long-stay operating material visible.
+    safety_candidates = sorted(
+        safety_season_available,
+        key=lambda candidate: _rule_based_score(candidate),
+        reverse=True,
+    )
+    safety_target = min(2, len(safety_candidates), max(0, count - len(selected)))
+    for candidate in safety_candidates:
+        if sum(1 for selected_item in selected if selection_category(selected_item) in safety_season_categories) >= safety_target:
             break
         if can_add(candidate):
             add(candidate)

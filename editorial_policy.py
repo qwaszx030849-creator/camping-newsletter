@@ -37,6 +37,24 @@ OPERATOR_QUERIES = [
     "숙박업 매출 데이터 마케팅",
     "야영장 소비 트렌드 통계",
 ]
+SAFETY_QUERIES = [
+    "캠핑장 안전관리 정책",
+    "야영장 안전기준 점검",
+    "캠핑장 전기 화재 예방 관리",
+    "캠핑장 소방 안전 점검 사례",
+    "캠핑장 배수로 침수 예방 운영",
+    "캠핑장 안전사고 대응 매뉴얼",
+    "숙박업 안전관리 의무 캠핑장",
+]
+WINTER_QUERIES = [
+    "캠핑장 겨울철 동계 대비 운영",
+    "캠핑장 동파 예방 관리",
+    "캠핑장 겨울 난방 전기 안전",
+    "캠핑장 장박 운영 관리 사례",
+    "캠핑장 장박 계약 환불 관리",
+    "캠핑장 대설 한파 대비 시설 점검",
+    "캠핑장 겨울철 수도 배관 관리",
+]
 SEASON_QUERIES = {
     "spring": ["캠핑장 봄 체험 후기", "캠핑장 어린이날 행사 후기"],
     "summer": ["캠핑장 수영장 관리 후기", "캠핑장 물놀이 체험 후기", "캠핑장 우천 동선 후기"],
@@ -47,7 +65,7 @@ SEASON_QUERIES = {
 
 def review_queries(month):
     season = "spring" if month in (3, 4, 5) else "summer" if month in (6, 7, 8) else "autumn" if month in (9, 10, 11) else "winter"
-    return REVIEW_QUERIES + OPERATOR_QUERIES + SEASON_QUERIES[season]
+    return REVIEW_QUERIES + OPERATOR_QUERIES + SAFETY_QUERIES + WINTER_QUERIES + SEASON_QUERIES[season]
 
 
 def insight_tags(item):

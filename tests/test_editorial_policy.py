@@ -45,6 +45,46 @@ class EditorialTests(unittest.TestCase):
         self.assertGreaterEqual(sum(categories.count(category) for category in ("매출전략", "산업동향", "마케팅")), 2)
         self.assertLessEqual(categories.count("후기인사이트"), 5)
 
+    def test_safety_and_winter_topics_are_prioritized_over_reviews(self):
+        reviews = [review(i) for i in range(8)]
+        safety = [ContentItem(
+            title="야영장 겨울철 동파 예방과 장박 운영 점검",
+            url="https://news.example.com/winter",
+            source="네이버 뉴스",
+            description="겨울철 캠핑장 운영에서 수도 배관 동파와 난방 설비 점검이 중요합니다. 장박 고객의 장기 이용 조건, 점검 기록, 비상 연락 체계를 함께 마련해야 합니다.",
+            category="후기인사이트",
+            published_date=datetime(2026, 10, 15),
+        ), ContentItem(
+            title="캠핑장 안전기준과 전기 화재 예방 점검 사례",
+            url="https://news.example.com/safety",
+            source="구글 뉴스",
+            description="캠핑장 안전기준에 맞춰 분전함과 누전 차단기, 소화기, 대피 동선을 점검한 운영 사례입니다. 점검 결과와 조치 내용을 기록해 재발을 막습니다.",
+            category="후기인사이트",
+            published_date=datetime(2026, 10, 15),
+        )]
+        selected = _balance_items(reviews + safety, reviews + safety, 10)
+        categories = [item.category for item in selected]
+        self.assertGreaterEqual(categories.count("시즌운영") + categories.count("장박운영") + categories.count("시설안전"), 2)
+        self.assertLessEqual(categories.count("후기인사이트"), 5)
+
+    def test_winter_and_safety_terms_get_operational_categories(self):
+        winter = ContentItem(
+            title="캠핑장 동계 장박 동파 예방 운영",
+            url="https://example.com/winter",
+            source="네이버 뉴스",
+            description="동파 예방과 장박 고객 관리, 난방 점검 기준을 정리한 자료입니다.",
+            published_date=datetime(2026, 10, 15),
+        )
+        safety = ContentItem(
+            title="야영장 안전기준과 전기 화재 예방",
+            url="https://example.com/safety",
+            source="네이버 뉴스",
+            description="분전함과 누전 차단기, 소화기, 대피 동선을 점검하는 안전관리 자료입니다.",
+            published_date=datetime(2026, 10, 15),
+        )
+        self.assertIn(_classify_category(winter), ("시즌운영", "장박운영"))
+        self.assertEqual(_classify_category(safety), "시설안전")
+
     def test_business_signals_override_generic_ai_category(self):
         item = ContentItem(
             title="캠핑 인구와 시장 동향 통계",

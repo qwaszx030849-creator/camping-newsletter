@@ -195,6 +195,12 @@ def collect_all_content() -> List[ContentItem]:
             "캠핑장 이용객 만족도 리뷰",
             "숙박업 데이터 마케팅 리뷰 관리",
             "오토캠핑장 운영 트렌드",
+            "캠핑장 안전정책 안전기준",
+            "야영장 안전관리 점검 사고 예방",
+            "캠핑장 전기 화재 동파 예방",
+            "캠핑장 장박 운영 계약 관리",
+            "캠핑장 겨울철 한파 대설 대비",
+            "캠핑장 난방 수도 배관 시설관리",
         ]
         if issue_date.month in (6, 7, 8, 9):
             news_keywords.extend([
@@ -222,6 +228,11 @@ def collect_all_content() -> List[ContentItem]:
             "캠핑장 이용객 설문 통계",
             "캠핑장 고객 리뷰 만족도",
             "숙박업 데이터 기반 마케팅",
+            "캠핑장 안전정책 안전기준",
+            "야영장 전기 화재 예방 안전관리",
+            "캠핑장 겨울철 동파 난방 관리",
+            "캠핑장 장박 운영 계약 사례",
+            "캠핑장 한파 대설 시설 점검",
         ]
         google_items = GoogleNewsCollector().collect(google_keywords)
         all_items.extend(google_items)
