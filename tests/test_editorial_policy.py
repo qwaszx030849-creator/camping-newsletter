@@ -239,5 +239,16 @@ class EditorialTests(unittest.TestCase):
         with patch("main.os.path.exists", return_value=True), patch("builtins.open", mock_open(read_data=existing)), patch("main.collect_all_content", return_value=[]):
             run_newsletter_pipeline(skip_send=True)
 
+    def test_previous_editorial_version_is_regenerated(self):
+        from main import run_newsletter_pipeline
+        existing = json.dumps({
+            "review_status": "draft",
+            "items": [{"title": "old", "url": "https://example.com/old", "source": "네이버 뉴스", "published_date": "2026-11-01T00:00:00"}],
+            "review_candidates": [],
+            "quality": {"editorial_version": 4},
+        })
+        with patch("main.os.path.exists", return_value=True), patch("builtins.open", mock_open(read_data=existing)), patch("main.collect_all_content", return_value=[]):
+            run_newsletter_pipeline(skip_send=True)
+
 if __name__ == "__main__":
     unittest.main()
