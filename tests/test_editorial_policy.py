@@ -6,6 +6,7 @@ from collectors.base import ContentItem
 from ai_filter import _balance_items, _classify_category, _is_hard_rejected, _parse_json_response, prepare_replacement_candidates
 from editorial_policy import same_article, evidence_summary, fallback_insight, normalize_insight
 from newsletter_generator import get_week_info, generate_newsletter_json, generate_newsletter_text
+from review_replacements import edit_items
 
 def review(i):
     return ContentItem(
@@ -84,6 +85,32 @@ class EditorialTests(unittest.TestCase):
         )
         self.assertIn(_classify_category(winter), ("시즌운영", "장박운영"))
         self.assertEqual(_classify_category(safety), "시설안전")
+
+    def test_operator_items_are_first_two_slots(self):
+        reviews = [review(i) for i in range(3)]
+        operation = ContentItem(
+            title="캠핑장 운영자가 정리한 겨울철 점검표",
+            url="https://example.com/operation",
+            source="네이버 블로그",
+            description="동파와 전기 안전, 장박 고객 안내를 운영 점검표로 정리한 자료입니다. 겨울철 시설 점검 주기와 비상 연락 기준까지 함께 기록한 운영 자료입니다.",
+            category="운영노하우",
+            published_date=datetime(2026, 10, 15),
+        )
+        selected = _balance_items(reviews + [operation], reviews + [operation], 4)
+        self.assertEqual(selected[0].url, operation.url)
+
+    def test_replacement_keeps_first_two_slots_operational(self):
+        items = [{"title": f"기존 {i}", "url": f"https://example.com/current/{i}", "category": "후기인사이트"} for i in range(1, 4)]
+        candidates = [
+            {"title": "후기 후보", "url": "https://example.com/review", "category": "후기인사이트"},
+            {"title": "운영 기사", "url": "https://example.com/news", "category": "산업동향", "source": "네이버 뉴스"},
+            {"title": "장박 운영 자료", "url": "https://example.com/longstay", "category": "장박운영"},
+            {"title": "두 번째 후기", "url": "https://example.com/review2", "category": "후기인사이트"},
+        ]
+        edited = edit_items({"items": items, "review_candidates": candidates}, excluded_numbers=[1, 2, 3])
+        self.assertEqual(edited["items"][0]["category"], "산업동향")
+        self.assertEqual(edited["items"][1]["category"], "장박운영")
+        self.assertEqual(edited["items"][2]["category"], "후기인사이트")
 
     def test_business_signals_override_generic_ai_category(self):
         item = ContentItem(
@@ -187,6 +214,15 @@ class EditorialTests(unittest.TestCase):
         self.assertNotIn("확인된 강점", text)
         self.assertNotIn("운영자가 배울 점", text)
         self.assertNotIn("적용 전 확인", text)
+
+    def test_kakao_text_keeps_only_compact_reference(self):
+        item = review(1)
+        item.summary = "확인된 자료 발췌: 원문 전체를 그대로 붙이면 안 되는 긴 발췌문입니다. 운영 적용 제안: 청소 기준을 점검합니다."
+        item.insight = {"lesson": "청소 기준과 점검 루틴을 참고할 수 있습니다."}
+        text = generate_newsletter_text([item], get_week_info(datetime(2026, 9, 21)))
+        self.assertIn("💡 참고할 부분:", text)
+        self.assertNotIn("확인된 자료 발췌", text)
+        self.assertNotIn("원문 전체를 그대로 붙이면", text)
 
     def test_model_insight_can_be_a_json_string(self):
         raw = '{"tags":["시설"],"strength":"개별 샤워실","lesson":"동선과 관리 기준을 함께 설계할 수 있습니다.","apply":"청소 주기를 확인합니다."}'

@@ -16,6 +16,23 @@ from typing import Any, Dict, List
 
 ROOT = Path(__file__).resolve().parent
 
+OPERATOR_CATEGORIES = {
+    "운영노하우", "매출전략", "마케팅", "산업동향", "시설개선", "시설안전",
+    "시즌운영", "장박운영", "리스크관리", "위생관리", "고객관리", "물놀이안전",
+}
+NEWS_SOURCES = {"네이버 뉴스", "구글 뉴스", "뉴스/제도", "정부지원", "제도/안전"}
+
+
+def _is_operator_candidate(item: Dict[str, Any]) -> bool:
+    category = str(item.get("category") or "")
+    source = str(item.get("source") or "")
+    text = f"{item.get('title', '')} {item.get('summary', '')} {item.get('description', '')}"
+    return (
+        category in OPERATOR_CATEGORIES
+        or source in NEWS_SOURCES
+        or any(word in text for word in ("매출", "예약률", "안전기준", "동파", "동계", "장박", "운영 정책"))
+    )
+
 
 def _load_json(path: Path) -> Dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
@@ -46,7 +63,7 @@ def _generate_fallback_text(items: List[Dict[str, Any]], week_info: Dict[str, An
                 "",
                 f"📌 {index}. {item.get('title', '')}",
                 "",
-                f"💬 {item.get('summary') or item.get('description', '')}",
+                f"💡 참고할 부분: {item.get('insight', {}).get('lesson') or item.get('summary') or item.get('description', '')}",
                 "",
                 f"🔗 {item.get('url', '')}",
                 "",
@@ -93,22 +110,37 @@ def edit_items(
         for i, item in enumerate(items)
         if i not in excluded_indexes and i not in delete_indexes
     }
-    candidate_cursor = 0
+    candidate_used_urls = set()
     replacements = []
     deletions = []
 
     for item_index in excluded_indexes:
         replacement = None
-        while candidate_cursor < len(candidates):
-            candidate = candidates[candidate_cursor]
-            candidate_cursor += 1
-            url = candidate.get("url")
-            if not url or url in active_urls:
+        operator_only = item_index < 2
+        available = [
+            candidate for candidate in candidates
+            if candidate.get("url")
+            and candidate.get("url") not in active_urls
+            and candidate.get("url") not in candidate_used_urls
+        ]
+        has_operator_candidate = any(_is_operator_candidate(candidate) for candidate in available)
+        for candidate in available:
+            if operator_only and not _is_operator_candidate(candidate):
                 continue
+            if not operator_only and has_operator_candidate and _is_operator_candidate(candidate):
+                continue
+            url = candidate.get("url")
             replacement = candidate
+            candidate_used_urls.add(url)
             break
 
+        if replacement is None and not operator_only and available:
+            replacement = available[0]
+            candidate_used_urls.add(replacement.get("url"))
+
         if replacement is None:
+            if operator_only:
+                raise ValueError("Slots 1-2 require an operational insight or news candidate.")
             raise ValueError("Not enough replacement candidates to fill all excluded slots.")
 
         removed = items[item_index]
@@ -162,7 +194,8 @@ def edit_items(
     )
     used_urls = {item.get("url") for item in items}
     updated["review_candidates"] = [
-        candidate for candidate in candidates[candidate_cursor:] if candidate.get("url") not in used_urls
+        candidate for candidate in candidates
+        if candidate.get("url") not in used_urls and candidate.get("url") not in candidate_used_urls
     ]
     return updated
 

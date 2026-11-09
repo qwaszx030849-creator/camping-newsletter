@@ -846,6 +846,9 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
     }
     business_categories = {"매출전략", "산업동향", "마케팅"}
     safety_season_categories = {"시설안전", "시즌운영", "장박운영", "리스크관리"}
+    fixed_operator_categories = business_categories | safety_season_categories | {
+        "운영노하우", "시설개선", "위생관리", "고객관리", "물놀이안전",
+    }
 
     def selection_category(item: ContentItem) -> str:
         inferred = _classify_category(item)
@@ -868,6 +871,18 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
             _has_review_insight(item)
             or (category in case_categories and is_blog_or_cafe and any(marker in item.title for marker in review_markers))
         )
+
+    def is_fixed_operator_item(item: ContentItem) -> bool:
+        return (
+            selection_category(item) in fixed_operator_categories
+            or _source_group(item) == "뉴스/제도"
+        )
+
+    def prioritize_operator_slots(selected_items: List[ContentItem]) -> List[ContentItem]:
+        """Keep the first two newsletter slots useful even after later balancing."""
+        operator_items = [item for item in selected_items if is_fixed_operator_item(item)]
+        other_items = [item for item in selected_items if not is_fixed_operator_item(item)]
+        return operator_items[:2] + other_items + operator_items[2:]
 
     all_pool = []
     seen_pool_urls = set()
@@ -957,7 +972,7 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         if can_add(item):
             add(item)
         if len(selected) >= count:
-            return selected
+            return prioritize_operator_slots(selected)
 
     scored_pool = [(item, _rule_based_score(item)) for item in pool if item.url not in selected_urls]
     scored_pool.sort(key=lambda x: x[1], reverse=True)
@@ -970,7 +985,7 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         if len(selected) >= count:
             break
 
-    return selected
+    return prioritize_operator_slots(selected)
 
 
 def _rule_based_filter(items: List[ContentItem], count: int) -> List[ContentItem]:

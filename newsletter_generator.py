@@ -50,12 +50,13 @@ def compact_reference(item: ContentItem, limit: int = 140) -> str:
         item.description,
     ]
     labels = re.compile(
-        r"^(?:확인된 자료 발췌|운영 적용 제안|확인된 강점|운영자가 배울 점|"
+        r"(?:확인된 자료 발췌|운영 적용 제안|확인된 강점|운영자가 배울 점|"
         r"적용 전 확인|캠퍼 반응)\s*:\s*"
     )
     for value in candidates:
         text = re.sub(r"\s+", " ", str(value or "")).strip()
-        text = labels.sub("", text).strip()
+        text = labels.sub(" ", text)
+        text = re.sub(r"\s+", " ", text).strip()
         if not text:
             continue
         sentences = re.split(r"(?<=[.!?。！？])\s+", text)
