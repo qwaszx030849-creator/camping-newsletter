@@ -103,14 +103,26 @@ class EditorialTests(unittest.TestCase):
         items = [{"title": f"기존 {i}", "url": f"https://example.com/current/{i}", "category": "후기인사이트"} for i in range(1, 4)]
         candidates = [
             {"title": "후기 후보", "url": "https://example.com/review", "category": "후기인사이트"},
-            {"title": "운영 기사", "url": "https://example.com/news", "category": "산업동향", "source": "네이버 뉴스"},
-            {"title": "장박 운영 자료", "url": "https://example.com/longstay", "category": "장박운영"},
+            {"title": "운영 기사", "url": "https://news.example.com/news", "category": "산업동향", "source": "네이버 뉴스"},
+            {"title": "장박 운영 자료", "url": "https://longstay.example.com/longstay", "category": "장박운영"},
             {"title": "두 번째 후기", "url": "https://example.com/review2", "category": "후기인사이트"},
         ]
         edited = edit_items({"items": items, "review_candidates": candidates}, excluded_numbers=[1, 2, 3])
         self.assertEqual(edited["items"][0]["category"], "산업동향")
         self.assertEqual(edited["items"][1]["category"], "장박운영")
         self.assertEqual(edited["items"][2]["category"], "후기인사이트")
+
+    def test_replacement_skips_tax_ads_and_near_duplicate_candidates(self):
+        items = [{"title": "기존 후기", "url": "https://example.com/current", "category": "후기인사이트"}]
+        candidates = [
+            {"title": "캠핑장 플랫폼 수수료 세금 정산", "url": "https://blog.naver.com/taxfirm/1", "category": "매출전략", "description": "세무법인 절세 상담과 세금 신고 대행 안내입니다."},
+            {"title": "캠핑장 운영 점검표", "url": "https://blog.naver.com/operator/1", "category": "운영노하우", "description": "전기와 난방 설비 점검 주기, 비상 연락 기준을 정리한 운영 체크리스트입니다."},
+            {"title": "캠핑장 운영 점검표 최신판", "url": "https://blog.naver.com/operator/2", "category": "운영노하우", "description": "전기와 난방 설비 점검 주기, 비상 연락 기준을 정리한 운영 체크리스트입니다."},
+        ]
+        edited = edit_items({"items": items, "review_candidates": candidates}, excluded_numbers=[1])
+        self.assertEqual(edited["items"][0]["url"], "https://blog.naver.com/operator/1")
+        self.assertNotIn("taxfirm", {item["url"] for item in edited["review_candidates"]})
+        self.assertNotIn("operator/2", {item["url"] for item in edited["review_candidates"]})
 
     def test_replacement_keeps_visible_first_slot_operational_after_delete(self):
         items = [{"title": f"기존 {i}", "url": f"https://example.com/current/{i}", "category": "후기인사이트"} for i in range(1, 4)]
@@ -176,6 +188,16 @@ class EditorialTests(unittest.TestCase):
             item = review(1)
             item.title = title
             self.assertTrue(_is_hard_rejected(item))
+
+    def test_tax_firm_promotional_article_is_rejected(self):
+        item = ContentItem(
+            title="캠핑장 플랫폼 수수료와 세금 정산 가이드",
+            url="https://blog.naver.com/taxfirm/1",
+            source="네이버 블로그",
+            description="세무법인에서 캠핑장 사장님을 위한 절세 상담과 세금 신고 대행을 안내합니다. 상담 문의를 남겨주세요.",
+            published_date=datetime(2026, 10, 15),
+        )
+        self.assertTrue(_is_hard_rejected(item))
 
     def test_sponsorship_hidden_in_body_is_excluded(self):
         from collectors.public_review import enrich_public_reviews

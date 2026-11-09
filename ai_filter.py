@@ -526,6 +526,14 @@ def _has_review_insight(item: ContentItem) -> bool:
     return any(w in text for w in review_words) and any(w in text for w in insight_words)
 
 
+def _is_tax_advertorial(item: ContentItem) -> bool:
+    """Reject tax-firm lead generation disguised as an operator article."""
+    text = f"{item.title} {item.description}".lower()
+    agency_terms = ("세무법인", "세무사", "세무회계", "세무대리", "세무 상담", "세무상담")
+    tax_terms = ("세금", "세무", "절세", "신고", "환급", "플랫폼 정산", "매출")
+    return any(term in text for term in agency_terms) and any(term in text for term in tax_terms)
+
+
 def _is_hard_rejected(item: ContentItem) -> bool:
     """제목 기반 즉시 탈락 판정"""
     title = item.title.lower()
@@ -543,6 +551,9 @@ def _is_hard_rejected(item: ContentItem) -> bool:
         and any(w in combined for w in ("조사", "통계", "데이터", "설문"))
         and any(w in combined for w in ("마케팅", "예약", "만족도", "재방문"))
     )
+
+    if _is_tax_advertorial(item):
+        return True
 
     excluded = ["파크골프", "마케팅 대행", "광고 대행", "플랫폼 관리",
                 "단독 예약", "독점 예약", "플랫폼 입점", "상판", "시공업체",
@@ -1219,13 +1230,19 @@ def prepare_replacement_candidates(
 
     selected = []
     source_count = {}
+    publisher_count = {}
     candidate_source_limits = {"뉴스/제도": 4, "지식iN": 1, "카페": 50, "네이버 블로그": 50}
     for item in candidates:
         source = _source_group(item)
         if source_count.get(source, 0) >= candidate_source_limits.get(source, 6):
             continue
+        publisher = publisher_key(item)
+        publisher_limit = 3 if publisher.startswith("cafe.naver.com/") else 2
+        if publisher_count.get(publisher, 0) >= publisher_limit:
+            continue
         selected.append(item)
         source_count[source] = source_count.get(source, 0) + 1
+        publisher_count[publisher] = publisher_count.get(publisher, 0) + 1
         if len(selected) >= limit:
             break
     return selected

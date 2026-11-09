@@ -7,10 +7,13 @@ Example:
 """
 import argparse
 import json
+import re
 from copy import deepcopy
 from datetime import datetime
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Dict, List
+from urllib.parse import urlparse
 
 
 
@@ -21,16 +24,62 @@ OPERATOR_CATEGORIES = {
     "시즌운영", "장박운영", "리스크관리", "위생관리", "고객관리", "물놀이안전",
 }
 NEWS_SOURCES = {"네이버 뉴스", "구글 뉴스", "뉴스/제도", "정부지원", "제도/안전"}
+REVIEW_TITLE_MARKERS = ("후기", "추천", "다녀", "방문", "솔직", "예약 방법", "명소", "여행")
+OPERATION_MARKERS = (
+    "매출", "예약률", "객단가", "비수기", "장박", "동계", "동파", "안전", "소방",
+    "전기", "화재", "난방", "운영", "관리", "정책", "기준", "점검", "체크리스트",
+    "수수료", "정산", "환불", "위생", "민원", "리스크", "시장", "동향", "통계", "데이터",
+)
+
+
+def _is_disallowed_candidate(item: Dict[str, Any]) -> bool:
+    text = f"{item.get('title', '')} {item.get('summary', '')} {item.get('description', '')}".lower()
+    tax_agency = ("세무법인", "세무사", "세무회계", "세무대리", "세무 상담", "세무상담")
+    tax_terms = ("세금", "세무", "절세", "신고", "환급", "플랫폼 정산", "매출")
+    ad_terms = ("협찬", "체험단", "광고 대행", "무료 상담", "상담 문의", "구매링크", "원고료")
+    return (
+        (any(term in text for term in tax_agency) and any(term in text for term in tax_terms))
+        or any(term in text for term in ad_terms)
+    )
+
+
+def _canonical_candidate_url(url: str) -> str:
+    parsed = urlparse(str(url or "").strip())
+    host = parsed.netloc.lower().removeprefix("m.")
+    return f"https://{host}{parsed.path.rstrip('/')}" if host else str(url or "").strip()
+
+
+def _same_candidate_article(left: Dict[str, Any], right: Dict[str, Any]) -> bool:
+    if _canonical_candidate_url(left.get("url")) == _canonical_candidate_url(right.get("url")):
+        return True
+    clean = lambda value: re.sub(r"[^가-힣a-z0-9]", "", str(value or "").lower())
+    first, second = clean(left.get("title")), clean(right.get("title"))
+    return min(len(first), len(second)) >= 12 and SequenceMatcher(None, first, second).ratio() >= 0.90
+
+
+def _candidate_publisher(item: Dict[str, Any]) -> str:
+    parsed = urlparse(str(item.get("url") or ""))
+    host = parsed.netloc.lower().removeprefix("m.")
+    parts = parsed.path.strip("/").split("/")
+    if host in ("blog.naver.com", "cafe.naver.com") and parts:
+        return f"{host}/{parts[0]}"
+    return host
 
 
 def _is_operator_candidate(item: Dict[str, Any]) -> bool:
+    if _is_disallowed_candidate(item):
+        return False
     category = str(item.get("category") or "")
     source = str(item.get("source") or "")
-    text = f"{item.get('title', '')} {item.get('summary', '')} {item.get('description', '')}"
+    title = str(item.get("title") or "").lower()
+    text = f"{title} {item.get('summary', '')} {item.get('description', '')}".lower()
+    if source in NEWS_SOURCES:
+        return True
+    if any(marker in title for marker in REVIEW_TITLE_MARKERS):
+        return False
     return (
-        category in OPERATOR_CATEGORIES
-        or source in NEWS_SOURCES
-        or any(word in text for word in ("매출", "예약률", "안전기준", "동파", "동계", "장박", "운영 정책"))
+        category in OPERATOR_CATEGORIES and any(word in text for word in OPERATION_MARKERS)
+        or any(word in text for word in OPERATION_MARKERS)
     )
 
 
@@ -112,17 +161,30 @@ def edit_items(
     }
     visible_indexes = [i for i in range(len(items)) if i not in set(delete_indexes)]
     candidate_used_urls = set()
+    selected_replacement_items = []
     replacements = []
     deletions = []
 
     for item_index in excluded_indexes:
         replacement = None
         operator_only = visible_indexes.index(item_index) < 2
+        base_items = [item for i, item in enumerate(items) if i != item_index and i not in delete_indexes]
         available = [
             candidate for candidate in candidates
             if candidate.get("url")
             and candidate.get("url") not in active_urls
             and candidate.get("url") not in candidate_used_urls
+            and not _is_disallowed_candidate(candidate)
+            and not any(_same_candidate_article(candidate, existing) for existing in base_items)
+            and not any(_same_candidate_article(candidate, existing) for existing in selected_replacement_items)
+        ]
+        publisher_counts = {}
+        for existing in base_items + selected_replacement_items:
+            publisher = _candidate_publisher(existing)
+            publisher_counts[publisher] = publisher_counts.get(publisher, 0) + 1
+        available = [
+            candidate for candidate in available
+            if publisher_counts.get(_candidate_publisher(candidate), 0) < 2
         ]
         has_operator_candidate = any(_is_operator_candidate(candidate) for candidate in available)
         for candidate in available:
@@ -147,6 +209,7 @@ def edit_items(
         removed = items[item_index]
         items[item_index] = replacement
         active_urls.add(replacement.get("url"))
+        selected_replacement_items.append(replacement)
         replacements.append(
             {
                 "slot": item_index + 1,
@@ -196,7 +259,10 @@ def edit_items(
     used_urls = {item.get("url") for item in items}
     updated["review_candidates"] = [
         candidate for candidate in candidates
-        if candidate.get("url") not in used_urls and candidate.get("url") not in candidate_used_urls
+        if candidate.get("url") not in used_urls
+        and candidate.get("url") not in candidate_used_urls
+        and not _is_disallowed_candidate(candidate)
+        and not any(_same_candidate_article(candidate, existing) for existing in items)
     ]
     return updated
 
