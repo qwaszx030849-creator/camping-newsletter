@@ -162,7 +162,7 @@ def generate_newsletter_json(
         )
     return {
         "quality": {
-            "editorial_version": 7,
+            "editorial_version": 8,
             "target_items": TARGET_ITEMS,
             "target_candidates": TARGET_CANDIDATES,
             "items_shortfall": max(0, TARGET_ITEMS - len(items)),

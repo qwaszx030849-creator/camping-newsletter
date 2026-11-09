@@ -99,6 +99,27 @@ class EditorialTests(unittest.TestCase):
         selected = _balance_items(reviews + [operation], reviews + [operation], 4)
         self.assertEqual(selected[0].url, operation.url)
 
+    def test_review_titled_long_stay_case_is_not_a_fixed_operator_slot(self):
+        reviews = [review(i) for i in range(2)]
+        long_stay_review = ContentItem(
+            title="겨울 장박 캠핑장 예약후기",
+            url="https://example.com/longstay-review",
+            source="네이버 블로그",
+            description="12월부터 장박 사이트를 운영하는 캠핑장을 방문한 후기입니다. 사이트와 화장실 이용 경험을 적었습니다.",
+            category="장박운영",
+            published_date=datetime(2026, 10, 15),
+        )
+        news = ContentItem(
+            title="야영장 동계 안전기준 점검 기사",
+            url="https://news.example.com/winter-safety",
+            source="네이버 뉴스",
+            description="동계 야영장 안전기준과 전기·난방 설비 점검 필요성을 다룬 기사입니다. 반복 사고를 줄이기 위해 점검 기록과 현장 대응 체계를 함께 확인해야 한다는 내용입니다.",
+            category="시설안전",
+            published_date=datetime(2026, 10, 15),
+        )
+        selected = _balance_items(reviews + [long_stay_review, news], reviews + [long_stay_review, news], 4)
+        self.assertEqual(selected[0].url, news.url)
+
     def test_replacement_keeps_first_two_slots_operational(self):
         items = [{"title": f"기존 {i}", "url": f"https://example.com/current/{i}", "category": "후기인사이트"} for i in range(1, 4)]
         candidates = [

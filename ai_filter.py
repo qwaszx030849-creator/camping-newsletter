@@ -860,6 +860,12 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
     fixed_operator_categories = business_categories | safety_season_categories | {
         "운영노하우", "시설개선", "위생관리", "고객관리", "물놀이안전",
     }
+    review_title_markers = ("후기", "추천", "다녀", "방문", "솔직", "예약 방법", "명소", "여행")
+    operator_text_markers = (
+        "매출", "예약률", "객단가", "비수기", "장박", "동계", "동파", "안전", "소방",
+        "전기", "화재", "난방", "운영", "관리", "정책", "기준", "점검", "체크리스트",
+        "수수료", "정산", "환불", "위생", "민원", "리스크", "시장", "동향", "통계", "데이터",
+    )
 
     def selection_category(item: ContentItem) -> str:
         inferred = _classify_category(item)
@@ -869,10 +875,20 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
             return inferred
         return item.category if item.category in known_categories else inferred
 
+    def is_fixed_operator_item(item: ContentItem) -> bool:
+        category = selection_category(item)
+        if _source_group(item) == "뉴스/제도":
+            return True
+        title = (item.title or "").lower()
+        text = f"{item.title} {item.description}".lower()
+        if any(marker in title for marker in review_title_markers):
+            return False
+        return category in fixed_operator_categories and any(marker in text for marker in operator_text_markers)
+
     def is_review_like(item: ContentItem) -> bool:
         category = selection_category(item)
         if category in safety_season_categories:
-            return False
+            return not is_fixed_operator_item(item)
         if category == "후기인사이트":
             return True
         case_categories = {"반려견운영", "키즈/체험", "물놀이안전", "고객관리"}
@@ -881,12 +897,6 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
         return category not in business_categories and (
             _has_review_insight(item)
             or (category in case_categories and is_blog_or_cafe and any(marker in item.title for marker in review_markers))
-        )
-
-    def is_fixed_operator_item(item: ContentItem) -> bool:
-        return (
-            selection_category(item) in fixed_operator_categories
-            or _source_group(item) == "뉴스/제도"
         )
 
     def prioritize_operator_slots(selected_items: List[ContentItem]) -> List[ContentItem]:
@@ -904,11 +914,13 @@ def _balance_items(items: List[ContentItem], pool: List[ContentItem], count: int
     business_available = [
         candidate for candidate in all_pool
         if selection_category(candidate) in business_categories
+        and is_fixed_operator_item(candidate)
         and not _is_hard_rejected(candidate)
     ]
     safety_season_available = [
         candidate for candidate in all_pool
         if selection_category(candidate) in safety_season_categories
+        and is_fixed_operator_item(candidate)
         and not _is_hard_rejected(candidate)
     ]
     review_limit = 5 if len(business_available) >= 2 or len(safety_season_available) >= 2 else count
