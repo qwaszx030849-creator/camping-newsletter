@@ -136,7 +136,7 @@ class EditorialTests(unittest.TestCase):
         self.assertFalse(_is_hard_rejected(item))
 
     def test_review_words_do_not_exempt_ads_or_wild_camping(self):
-        for title in ("무료 노지 캠핑장 후기", "캠핑장 제휴 마케팅 후기", "클라이언트 캠핑장 매출 후기"):
+        for title in ("무료 노지 캠핑장 후기", "캠핑장 제휴 마케팅 후기", "클라이언트 캠핑장 매출 후기", "야영장 창업·운영 질의응답"):
             item = review(1)
             item.title = title
             self.assertTrue(_is_hard_rejected(item))
